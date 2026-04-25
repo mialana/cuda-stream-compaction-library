@@ -1,5 +1,6 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
+
 #include <thrust/detail/vector_base.h>
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
@@ -8,6 +9,7 @@
 #include <thrust/tuple.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
+
 #include "common.h"
 #include "thrust.h"
 
@@ -111,7 +113,7 @@ int compactByKey(int n, int* out_keys, float* out_values, const int* in_keys, co
 
     // Call remove_if: it shifts surviving elements to the front.
     // Remove pairs if key == 0.
-    auto new_end = thrust::remove_if(zipped_begin,
+    auto new_end = thrust::remove_if(zipped_begin, 
                                      zipped_end,
                                      [] __device__(const thrust::tuple<int, float>& tup) {
                                          return thrust::get<0>(tup) == 0;

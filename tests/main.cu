@@ -7,13 +7,14 @@
  */
 
 #include <cstdio>
+#include "testing_helpers.h"
+
 #include <stream_compaction/cpu.h>
 #include <stream_compaction/naive.h>
 #include <stream_compaction/efficient.h>
 #include <stream_compaction/thrust.h>
 #include <stream_compaction/radix.h>
 #include <stream_compaction/shared.h>
-#include "testing_helpers.hpp"
 
 // use during development with `#if !SKIP_UNIMPLEMENTED` preprocessor at desired skip point
 #define SKIP_UNIMPLEMENTED 1
@@ -52,9 +53,7 @@ void getDeviceProperties()
         err = cudaGetDeviceProperties(&deviceProp, i);
         if (err != cudaSuccess)
         {
-            fprintf(stderr,
-                    "Failed to get properties for device %d: %s\n",
-                    i,
+            fprintf(stderr, "Failed to get properties for device %d: %s\n", i,
                     cudaGetErrorString(err));
             continue;
         }
