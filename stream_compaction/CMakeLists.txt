@@ -33,15 +33,5 @@ target_compile_options(${PROJECT_NAME} PRIVATE "$<$<AND:$<CONFIG:Debug,RelWithDe
 
 target_compile_options(${PROJECT_NAME} PRIVATE "$<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CUDA>>:-lineinfo;--extended-lambda>")
 
-if(MSVC)
-    # needed for proper intellisense when using MSVC IDEs (VS, Rider, etc.)
-    set(CMAKE_VS_SDK_INCLUDE_DIRECTORIES
-        "$(VC_IncludePath)"
-        "$(WindowsSDK_IncludePath)"
-        "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
-        "${CMAKE_SOURCE_DIR}"
-)
-endif()
-
 # create a namespaced alias to distinguish what is actually linked against
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})

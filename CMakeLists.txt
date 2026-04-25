@@ -3,6 +3,8 @@ project(stream_compaction LANGUAGES CUDA CXX)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CUDA_SEPARABLE_COMPILATION ON) # force compilation as separate objects
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CUDA_STANDARD 20)
@@ -21,6 +23,7 @@ if(PROJECT_IS_TOP_LEVEL)
     set(STREAM_COMPACTION_BUILD_TESTS ON) # default for `ExternalProject`, `FetchContent`, etc will be `OFF`
 endif()
 
+# configure tests target
 if(STREAM_COMPACTION_BUILD_TESTS)
     set(STREAM_COMPACTION_TESTS_TARGET ${PROJECT_NAME}_tests)
     set(STREAM_COMPACTION_TESTS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/tests)
@@ -52,3 +55,12 @@ if(STREAM_COMPACTION_BUILD_TESTS)
     endif()
 endif()
 
+if(MSVC)
+    # needed for proper intellisense when using MSVC IDEs (VS, Rider, etc.)
+    set(CMAKE_VS_SDK_INCLUDE_DIRECTORIES
+        "$(VC_IncludePath)"
+        "$(WindowsSDK_IncludePath)"
+        "${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}"
+        "${CMAKE_SOURCE_DIR}"
+)
+endif()

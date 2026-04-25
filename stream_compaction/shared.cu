@@ -137,6 +137,7 @@ void StreamCompaction::Shared::scan(
     // numBlocks, numThreads, shared mem size
     kernel_scanIntraBlockShared<<<numBlocks, blockSize, _offset(blockSpan) * sizeof(int)>>>(
         paddedN, dev_idata, dev_odata, dev_blockSums);
+    checkCUDAError("`kernel_scanIntraBlockShared` launch failed.");
 
     if (numBlocks > 1)
     {
@@ -299,13 +300,3 @@ int StreamCompaction::Shared::compactWrapper(int n, int* odata, const int* idata
 
     return compactCount;
 }
-
-// template int StreamCompaction::Shared::compactByKey<float>(int n,
-//                                                            const float* dev_ivalues,
-//                                                            float* dev_ovalues,
-//                                                            const int* dev_idata,
-//                                                            int* dev_odata,
-//                                                            int* dev_bools,
-//                                                            int* dev_indices,
-//                                                            int* dev_blockSums,
-//                                                            int blockSize);
