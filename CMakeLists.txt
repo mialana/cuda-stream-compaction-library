@@ -1,48 +1,35 @@
-cmake_minimum_required(VERSION 3.18)
-project(cis5650_stream_compaction_test LANGUAGES CUDA CXX)
+cmake_minimum_required(VERSION 3.24)
+project(cuda_stream_compaction LANGUAGES CUDA CXX)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-
-# Enable C++11 for host code
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CUDA_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-# Set a default build type if none was specified
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-    SET(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
-    # Set the possible values of build type for cmake-gui
-    SET_PROPERTY(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
+set(CURR_CMAKE_MODULE_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/cmake" CACHE INTERNAL "") # make a variable for cmake dir
 
+set(TESTS_TARGET_NAME ${PROJECT_NAME}_tests)
 
-if(UNIX)
-    include_directories("${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
-endif(UNIX)
-include_directories("${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
+set(CURR_HEADERS
+    "tests/testing_helpers.h"
+)
+
+set(CURR_SOURCES
+    "tests/main.cu"
+)
+
+add_executable(${TESTS_TARGET_NAME} ${CURR_SOURCES} ${CURR_HEADERS})
 
 add_subdirectory(stream_compaction)
 
-include_directories(.)
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_PKG_FILES_BUILD_DIR}")
+find_package(stream_compaction CONFIG)
 
-set(headers
-    "src/testing_helpers.hpp"
-    )
+target_link_libraries(${TESTS_TARGET_NAME} stream_compaction::stream_compaction)
 
-set(sources
-    "src/main.cu"
-    )
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    # make tests target the startup project in VS
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${TESTS_TARGET_NAME})
+endif()
 
-list(SORT headers)
-list(SORT sources)
-
-source_group(Headers FILES ${headers})
-source_group(Sources FILES ${sources})
-
-add_executable(${CMAKE_PROJECT_NAME} ${sources} ${headers})
-target_link_libraries(${CMAKE_PROJECT_NAME} stream_compaction)
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${CMAKE_PROJECT_NAME})

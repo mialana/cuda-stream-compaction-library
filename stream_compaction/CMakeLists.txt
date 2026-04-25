@@ -1,4 +1,9 @@
-set(headers
+cmake_minimum_required(VERSION 3.24)
+project(stream_compaction LANGUAGES CUDA CXX)
+
+set(stream_compaction_VERSION 1.0.0)
+
+set(CURR_HEADERS
     "common.h"
     "cpu.h"
     "naive.h"
@@ -8,7 +13,7 @@ set(headers
     "shared.h"
     )
 
-set(sources
+set(CURR_SOURCES
     "common.cu"
     "cpu.cu"
     "naive.cu"
@@ -16,28 +21,59 @@ set(sources
     "thrust.cu"
     "radix.cu"
     "shared.cu"
-    )
+)
 
-list(SORT headers)
-list(SORT sources)
+add_library(${PROJECT_NAME} SHARED ${CURR_SOURCES} ${CURR_HEADERS})
 
-source_group(Headers FILES ${headers} PREFIX stream_compaction)
-source_group(Sources FILES ${sources} PREFIX stream_compaction)
+target_include_directories(${PROJECT_NAME} PUBLIC 
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
+)
 
-add_library(stream_compaction ${sources} ${headers})
+set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES native)
 
-target_include_directories(stream_compaction PUBLIC ${CMAKE_SOURCE_DIR})
+target_compile_options(${PROJECT_NAME} PRIVATE "$<$<AND:$<CONFIG:Debug,RelWithDebInfo>,$<COMPILE_LANGUAGE:CUDA>>:-G;-src-in-ptx;--extended-lambda>")
 
-if(CMAKE_VERSION VERSION_LESS "3.23.0")
-    set_target_properties(stream_compaction} PROPERTIES CUDA_ARCHITECTURES OFF)
-elseif(CMAKE_VERSION VERSION_LESS "3.24.0")
-    set_target_properties(stream_compaction PROPERTIES CUDA_ARCHITECTURES all-major)
-else()
-    set_target_properties(stream_compaction PROPERTIES CUDA_ARCHITECTURES native)
-endif()
+target_compile_options(${PROJECT_NAME} PRIVATE "$<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CUDA>>:-lineinfo;--extended-lambda>")
 
-target_compile_options(stream_compaction PRIVATE "$<$<AND:$<CONFIG:Debug,RelWithDebInfo>,$<COMPILE_LANGUAGE:CUDA>>:-G;-src-in-ptx;--extended-lambda>")
+# packaging
 
-target_compile_options(stream_compaction PRIVATE "$<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CUDA>>:-lineinfo;--extended-lambda>")
+include(CMakePackageConfigHelpers)
 
-message("Info: Added stream_compaction library.")
+set(CMAKE_PKG_FILES_INSTALL_DIR "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}" CACHE INTERNAL "")
+set(CMAKE_PKG_FILES_BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}/cmake" CACHE INTERNAL "")
+
+install(TARGETS ${PROJECT_NAME} EXPORT ${PROJECT_NAME}Targets)
+
+# targets file
+# install tree usage
+install(EXPORT ${PROJECT_NAME}Targets
+        FILE "${PROJECT_NAME}Targets.cmake"
+        DESTINATION ${CMAKE_PKG_FILES_INSTALL_DIR}
+        NAMESPACE ${PROJECT_NAME}::
+)
+# build tree usage using `install(EXPORT ...)`
+export(EXPORT ${PROJECT_NAME}Targets 
+    FILE "${CMAKE_PKG_FILES_BUILD_DIR}/${PROJECT_NAME}Targets.cmake"
+    NAMESPACE ${PROJECT_NAME}::
+)
+
+# config file (will create during configure time)
+configure_package_config_file(${CURR_CMAKE_MODULE_ROOT}/Config.cmake.in
+  "${CMAKE_PKG_FILES_BUILD_DIR}/${PROJECT_NAME}Config.cmake"
+  INSTALL_DESTINATION ${CMAKE_PKG_FILES_INSTALL_DIR}
+)
+
+# version file (will create during configure time)
+write_basic_package_version_file(
+    "${CMAKE_PKG_FILES_BUILD_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    VERSION ${stream_compaction_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+# install of config and version files
+install(FILES
+    "${CMAKE_PKG_FILES_BUILD_DIR}/${PROJECT_NAME}Config.cmake"
+    "${CMAKE_PKG_FILES_BUILD_DIR}/${PROJECT_NAME}ConfigVersion.cmake"
+    DESTINATION ${CMAKE_PKG_FILES_INSTALL_DIR}
+)
