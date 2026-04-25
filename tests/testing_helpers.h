@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstdlib>
 #include <cstdio>
 #include <iostream>
 #include <ctime>
@@ -12,7 +11,15 @@ int cmpArrays(int n, T* a, T* b)
     {
         if (a[i] != b[i])
         {
-            printf("    a[%d] = %d, b[%d] = %d\n", i, a[i], i, b[i]);
+            if constexpr (std::is_same_v<T, int>)
+            {
+                printf("    a[%i] = %i, b[%i] = %i\n", i, a[i], i, b[i]);
+            }
+            else if constexpr (std::is_floating_point_v<T>)
+            {
+                printf("    a[%i] = %.2f, b[%i] = %.2f\n", i, a[i], i, b[i]);
+            }
+
             return 1;
         }
     }
@@ -37,10 +44,9 @@ inline void printCmpLenResult(int n, int expN, T* a, T* b)
     {
         printf("    expected %d elements, got %d\n", expN, n);
     }
-    printf("    %s \033[0m\n",
-           (n == -1 || n != expN) ? "\033[1;31mFAIL COUNT"
-           : cmpArrays(n, a, b)   ? "\033[1;31mFAIL VALUE"
-                                  : "\033[1;32mpassed");
+    printf("    %s \033[0m\n", (n == -1 || n != expN) ? "\033[1;31mFAIL COUNT"
+                               : cmpArrays(n, a, b)   ? "\033[1;31mFAIL VALUE"
+                                                      : "\033[1;32mpassed");
 }
 
 inline void zeroArray(int n, int* a)
@@ -100,7 +106,8 @@ inline void printArray(int n, T* a, bool abridged = false)
         if constexpr (std::is_integral_v<T>)
         {
             printf("%3d ", static_cast<int>(a[i]));
-        } else if constexpr (std::is_floating_point_v<T>)
+        }
+        else if constexpr (std::is_floating_point_v<T>)
         {
             printf("%3.1f ", static_cast<double>(a[i]));
         }

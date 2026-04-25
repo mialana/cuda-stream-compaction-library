@@ -12,6 +12,7 @@ set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 # force consistent dynamic (as opposed to static) runtime
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+set(CMAKE_CUDA_RUNTIME_LIBRARY Hybrid)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -56,7 +57,7 @@ if(STREAM_COMPACTION_BUILD_TESTS)
 endif()
 
 if(MSVC)
-    # needed for proper intellisense when using MSVC IDEs (VS, Rider, etc.)
+    # needed for proper intellisense when using VS or Rider with a VS solution
     set(CMAKE_VS_SDK_INCLUDE_DIRECTORIES
         "$(VC_IncludePath)"
         "$(WindowsSDK_IncludePath)"

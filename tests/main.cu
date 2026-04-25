@@ -1,5 +1,5 @@
 /**
- * @file      main.cpp
+ * @file      main.cu
  * @brief     Stream compaction test program
  * @authors   Kai Ninomiya
  * @date      2015
@@ -19,7 +19,7 @@
 // use during development with `#if !SKIP_UNIMPLEMENTED` preprocessor at desired skip point
 #define SKIP_UNIMPLEMENTED 1
 
-const int SIZE = 1 << 24;   // feel free to change the size of array
+const int SIZE = 1 << 24;  // feel free to change the size of array
 const int NPOT = SIZE - 3;  // Non-Power-Of-Two
 
 int* a = new int[SIZE];
@@ -340,10 +340,7 @@ void doCompactByKeyTest()
     zeroArray(SIZE, b);
     printDesc("thrust compact by key");
 
-    int expectedCount = StreamCompaction::Thrust::compactByKey(SIZE,
-                                                               b,
-                                                               out_flt_values_thrust,
-                                                               a,
+    int expectedCount = StreamCompaction::Thrust::compactByKey(SIZE, b, out_flt_values_thrust, a,
                                                                flt_values);
 
     printElapsedTime(StreamCompaction::Thrust::timer().getGpuElapsedTimeForPreviousOperation(),
@@ -354,11 +351,8 @@ void doCompactByKeyTest()
     zeroArray(SIZE, c);
     printDesc("custom compact by key");
 
-    int count = StreamCompaction::Shared::compactByKeyWrapper<float>(SIZE,
-                                                                     out_flt_values_custom,
-                                                                     c,
-                                                                     flt_values,
-                                                                     a);
+    int count = StreamCompaction::Shared::compactByKeyWrapper<float>(SIZE, out_flt_values_custom, c,
+                                                                     flt_values, a);
 
     printElapsedTime(StreamCompaction::Shared::timer().getGpuElapsedTimeForPreviousOperation(),
                      "(CUDA Measured)");
@@ -405,7 +399,7 @@ int main()
     doCompactByKeyTest();
 
 #if defined(_WIN32) || defined(_WIN64)  // errors out on linux
-    system("pause");                    // stop Win32 console from closing on exit
+    system("pause");  // stop Win32 console from closing on exit
 #endif
 
     delete[] a;

@@ -1,3 +1,5 @@
+find_package(CUDAToolkit REQUIRED)
+
 set(LIB_HEADERS
     "common.h"
     "cpu.h"
@@ -6,7 +8,7 @@ set(LIB_HEADERS
     "thrust.h"
     "radix.h"
     "shared.h"
-    )
+)
 
 set(LIB_SOURCES
     "common.cu"
@@ -25,7 +27,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 find_package(CCCL REQUIRED CONFIG)
-target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL)
+target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL PUBLIC CUDA::cudart)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES "native")
 

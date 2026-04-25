@@ -21,7 +21,8 @@
     "buildPresets": [
         {
             "name": "windows_build",
-            "configurePreset": "windows_configure"
+            "configurePreset": "windows_configure",
+            "displayName": "Windows Default Build"
         }
     ],
     "workflowPresets": [
@@ -36,7 +37,8 @@
                     "type": "build",
                     "name": "windows_build"
                 }
-            ]
+            ],
+            "displayName": "Windows Default Workflow"
         }
     ]
 }
