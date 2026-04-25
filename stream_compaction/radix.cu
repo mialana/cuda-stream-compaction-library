@@ -32,8 +32,9 @@ __global__ void StreamCompaction::Radix::_split(int n, int* data, int* notBit, c
     notBit[index] = _isolateBit(data[index], tgtBit) ^ 1;  // not(target bit)
 }
 
-__global__ void StreamCompaction::Radix::_computeScatterIndices(
-    int n, int* indices, const int* idata, const int* scan, const int tgtBit)
+__global__ void StreamCompaction::Radix::_computeScatterIndices(int n, int* indices,
+                                                                const int* idata, const int* scan,
+                                                                const int tgtBit)
 {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
@@ -56,9 +57,7 @@ __global__ void StreamCompaction::Radix::_computeScatterIndices(
                                                        : scan[index];
 }
 
-__global__ void StreamCompaction::Radix::_scatter(int n,
-                                                  int* odata,
-                                                  const int* idata,
+__global__ void StreamCompaction::Radix::_scatter(int n, int* odata, const int* idata,
                                                   const int* indices)
 {
     int index = (blockIdx.x * blockDim.x) + threadIdx.x;
@@ -72,13 +71,8 @@ __global__ void StreamCompaction::Radix::_scatter(int n,
     odata[address] = idata[index];  // Scatter the value to its new position
 }
 
-void StreamCompaction::Radix::sort(int n,
-                                   int* dev_dataA,
-                                   int* dev_dataB,
-                                   int* dev_blockSums,
-                                   int* dev_indices,
-                                   const int maxBitLength,
-                                   const int blockSize)
+void StreamCompaction::Radix::sort(int n, int* dev_dataA, int* dev_dataB, int* dev_blockSums,
+                                   int* dev_indices, const int maxBitLength, const int blockSize)
 {
     for (int tgtBit = 0; tgtBit < maxBitLength; tgtBit++)
     {
@@ -102,8 +96,8 @@ void StreamCompaction::Radix::sort(int n,
     }
 }
 
-void StreamCompaction::Radix::sortWrapper(
-    int n, int* odata, const int* idata, const int maxBitLength, const int blockSize)
+void StreamCompaction::Radix::sortWrapper(int n, int* odata, const int* idata,
+                                          const int maxBitLength, const int blockSize)
 {
     const unsigned numLayers = ilog2ceil(n);
     const unsigned long long paddedN = 1 << ilog2ceil(n);
@@ -138,12 +132,7 @@ void StreamCompaction::Radix::sortWrapper(
         usingTimer = true;
     }
 
-    StreamCompaction::Radix::sort(n,
-                                  dev_dataA,
-                                  dev_dataB,
-                                  dev_blockSums,
-                                  dev_indices,
-                                  maxBitLength,
+    StreamCompaction::Radix::sort(n, dev_dataA, dev_dataB, dev_blockSums, dev_indices, maxBitLength,
                                   blockSize);
 
     if (usingTimer)
@@ -162,15 +151,9 @@ void StreamCompaction::Radix::sortWrapper(
     cudaFree(dev_indices);
 }
 
-void StreamCompaction::Radix::sortByKey(int n,
-                                        int* dev_keysA,
-                                        int* dev_keysB,
-                                        int* dev_valuesA,
-                                        int* dev_valuesB,
-                                        int* dev_blockSums,
-                                        int* dev_indices,
-                                        const int maxBitLength,
-                                        const int blockSize)
+void StreamCompaction::Radix::sortByKey(int n, int* dev_keysA, int* dev_keysB, int* dev_valuesA,
+                                        int* dev_valuesB, int* dev_blockSums, int* dev_indices,
+                                        const int maxBitLength, const int blockSize)
 {
     for (int tgtBit = 0; tgtBit < maxBitLength; tgtBit++)
     {
@@ -199,12 +182,8 @@ void StreamCompaction::Radix::sortByKey(int n,
     }
 }
 
-void StreamCompaction::Radix::sortByKeyWrapper(int n,
-                                               int* okeys,
-                                               const int* ikeys,
-                                               int* ovalues,
-                                               const int* ivalues,
-                                               const int maxBitLength,
+void StreamCompaction::Radix::sortByKeyWrapper(int n, int* okeys, const int* ikeys, int* ovalues,
+                                               const int* ivalues, const int maxBitLength,
                                                const int blockSize)
 {
     const unsigned numLayers = ilog2ceil(n);
@@ -251,15 +230,8 @@ void StreamCompaction::Radix::sortByKeyWrapper(int n,
         usingTimer = true;
     }
 
-    StreamCompaction::Radix::sortByKey(n,
-                                       dev_keysA,
-                                       dev_keysB,
-                                       dev_valuesA,
-                                       dev_valuesB,
-                                       dev_blockSums,
-                                       dev_indices,
-                                       maxBitLength,
-                                       blockSize);
+    StreamCompaction::Radix::sortByKey(n, dev_keysA, dev_keysB, dev_valuesA, dev_valuesB,
+                                       dev_blockSums, dev_indices, maxBitLength, blockSize);
 
     if (usingTimer)
     {

@@ -16,10 +16,8 @@ __device__ __host__ int _offset(int idx)
     return idx + CONFLICT_FREE_OFFSET(idx);
 }
 
-__global__ void kernel_scanIntraBlockShared(const unsigned long long paddedN,
-                                            const int* idata,
-                                            int* odata,
-                                            int* blockSums)
+__global__ void kernel_scanIntraBlockShared(const unsigned long long paddedN, const int* idata,
+                                            int* odata, int* blockSums)
 {
     extern __shared__ int mat[];
 
@@ -67,7 +65,7 @@ __global__ void kernel_scanIntraBlockShared(const unsigned long long paddedN,
     if (tid == 0)
     {
         blockSums[blockIdx.x] = mat[_offset(tileSize - 1)];  // write accumulated val of block
-        mat[_offset(tileSize - 1)] = 0;                      // clear last element
+        mat[_offset(tileSize - 1)] = 0;  // clear last element
     }
 
     for (int activeThreads = 1; activeThreads < tileSize; activeThreads <<= 1)
@@ -125,8 +123,8 @@ __global__ void kernel_addBlockSums(int n, int* dev_data, const int* dev_blockSu
     the inner operation of scan without timers and allocation.
     note: dev_scan should be pre-allocated to the padded power of two size
 */
-void StreamCompaction::Shared::scan(
-    int n, const int* dev_idata, int* dev_odata, int* dev_blockSums, const int blockSize)
+void StreamCompaction::Shared::scan(int n, const int* dev_idata, int* dev_odata, int* dev_blockSums,
+                                    const int blockSize)
 {
     unsigned long long paddedN = 1 << ilog2ceil(n);  // pad to nearest power of 2
 
@@ -210,13 +208,8 @@ void StreamCompaction::Shared::scanWrapper(int n, int* odata, const int* idata)
 
 /************************************************************************************************ */
 
-int StreamCompaction::Shared::compact(int n,
-                                      const int* dev_idata,
-                                      int* dev_odata,
-                                      int* dev_bools,
-                                      int* dev_indices,
-                                      int* dev_blockSums,
-                                      int blockSize)
+int StreamCompaction::Shared::compact(int n, const int* dev_idata, int* dev_odata, int* dev_bools,
+                                      int* dev_indices, int* dev_blockSums, int blockSize)
 {
     int blocks = divup(n, blockSize);
 
@@ -242,7 +235,7 @@ int StreamCompaction::Shared::compact(int n,
  */
 int StreamCompaction::Shared::compactWrapper(int n, int* odata, const int* idata)
 {
-    unsigned long long paddedN = 1 << ilog2ceil(n);    // pad to nearest power of 2
+    unsigned long long paddedN = 1 << ilog2ceil(n);  // pad to nearest power of 2
     int totalBlocks = divup(paddedN, 2 * BLOCK_SIZE);  // for scan block sums
 
     // Allocate device arrays
@@ -279,8 +272,8 @@ int StreamCompaction::Shared::compactWrapper(int n, int* odata, const int* idata
         usingTimer = true;
     }
 
-    int compactCount
-        = compact(n, dev_idata, dev_odata, dev_bools, dev_indices, dev_blockSums, BLOCK_SIZE);
+    int compactCount = compact(n, dev_idata, dev_odata, dev_bools, dev_indices, dev_blockSums,
+                               BLOCK_SIZE);
 
     if (usingTimer)
     {

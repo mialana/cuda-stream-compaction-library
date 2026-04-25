@@ -11,15 +11,13 @@ PerformanceTimer& StreamCompaction::Efficient::timer()
     return timer;
 }
 
-__global__ void kernel_efficientUpSweep(const unsigned long long paddedN,
-                                        const int stride,
-                                        const int prevStride,
-                                        int* scan)
+__global__ void kernel_efficientUpSweep(const unsigned long long paddedN, const int stride,
+                                        const int prevStride, int* scan)
 {
     int strideIdx = blockIdx.x * blockDim.x + threadIdx.x;  // 0, 1, 2, 3... (like normal)
-                                                            // but this is not target elem index
+    // but this is not target elem index
 
-    unsigned long long strideStart = strideIdx * stride;    // index where this stride starts
+    unsigned long long strideStart = strideIdx * stride;  // index where this stride starts
 
     // last index in stride. accumulated value of stride always goes here
     unsigned long long accumulatorIdx = strideStart + stride - 1;
@@ -38,8 +36,7 @@ __global__ void kernel_efficientUpSweep(const unsigned long long paddedN,
     scan[accumulatorIdx] = accumulator + scan[siblingIdx];
 }
 
-__global__ void kernel_efficientDownSweep(const unsigned long long paddedN,
-                                          const int STRIDE,
+__global__ void kernel_efficientDownSweep(const unsigned long long paddedN, const int STRIDE,
                                           const int nextSTRIDE,  // nextStride == (stride / 2)
                                           int* scan)
 {
@@ -86,9 +83,9 @@ void StreamCompaction::Efficient::scan(int n, int* dev_scan, const int blockSize
     int numLayers = ilog2ceil(n);
     unsigned long long paddedN = 1 << numLayers;  // pad to nearest power of 2
 
-    int prevStride = 1;                           // 1, 2, 4, 8, ... n/2
+    int prevStride = 1;  // 1, 2, 4, 8, ... n/2
     int stride = 2;  // essentially the amount of indices that are accumulated into 1 at this iter
-                     // 2, 4, 8, ... n
+    // 2, 4, 8, ... n
     for (int iter = 0; iter < numLayers; iter++)
     {
         // paddedN >> (iter + 1) == paddedN / (iter + 2) = the number of active threads in this iter
@@ -105,7 +102,7 @@ void StreamCompaction::Efficient::scan(int n, int* dev_scan, const int blockSize
     int replacement = 0;
     cudaMemcpy(&dev_scan[paddedN - 1], &replacement, sizeof(int), cudaMemcpyHostToDevice);
 
-    stride = paddedN;               // n, n/2, n/4, ... 2
+    stride = paddedN;  // n, n/2, n/4, ... 2
     int nextStride = paddedN >> 1;  // n/2, n/4, ... 1
     for (int iter = numLayers; iter > 0; iter--)
     {

@@ -17,25 +17,14 @@ void scan(int n, const int* dev_idata, int* dev_odata, int* dev_blockSums, const
 
 void scanWrapper(int n, int* odata, const int* idata);
 
-int compact(int n,
-            const int* dev_idata,
-            int* dev_odata,
-            int* dev_bools,
-            int* dev_indices,
-            int* dev_blockSums,
-            int blockSize);
+int compact(int n, const int* dev_idata, int* dev_odata, int* dev_bools, int* dev_indices,
+            int* dev_blockSums, int blockSize);
 
 int compactWrapper(int n, int* odata, const int* idata);
 
 template<typename T>
-inline int compactByKey(int n,
-                        const T* dev_ivalues,
-                        T* dev_ovalues,
-                        const int* dev_idata,
-                        int* dev_odata,
-                        int* dev_bools,
-                        int* dev_indices,
-                        int* dev_blockSums,
+inline int compactByKey(int n, const T* dev_ivalues, T* dev_ovalues, const int* dev_idata,
+                        int* dev_odata, int* dev_bools, int* dev_indices, int* dev_blockSums,
                         int blockSize)
 {
     int blocks = divup(n, blockSize);
@@ -67,8 +56,8 @@ inline int compactByKey(int n,
 // The function returns the number of surviving (compacted) elements.
 template<typename T>
 inline int compactByKeyWrapper(int n,
-                               T* h_ovalues,        // output values (host)
-                               int* h_okeys,        // output keys (host)
+                               T* h_ovalues,  // output values (host)
+                               int* h_okeys,  // output keys (host)
                                const T* h_ivalues,  // input values (host)
                                const int* h_ikeys)  // input keys (host)
 {
@@ -93,12 +82,12 @@ inline int compactByKeyWrapper(int n,
     // (This kernel launches both key and value scatter.)
     int count
         = StreamCompaction::Shared::compactByKey<T>(n,
-                                                    d_ivalues,    // device input values
-                                                    d_ovalues,    // device output values
-                                                    d_ikeys,      // device input keys
-                                                    d_okeys,      // device output keys
-                                                    d_bools,      // temporary device bool array
-                                                    d_indices,    // temporary device indices array
+                                                    d_ivalues,  // device input values
+                                                    d_ovalues,  // device output values
+                                                    d_ikeys,  // device input keys
+                                                    d_okeys,  // device output keys
+                                                    d_bools,  // temporary device bool array
+                                                    d_indices,  // temporary device indices array
                                                     d_blockSums,  // temporary device blockSums array
                                                     BLOCK_SIZE);
 

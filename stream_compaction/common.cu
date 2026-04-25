@@ -38,8 +38,8 @@ __global__ void kernMapToBoolean(int n, int* bools, const int* idata)
     bools[index] = idata[index] == 0 ? 0 : 1;
 }
 
-template __global__ void kernScatter<int>(
-    int n, int* odata, const int* idata, const int* bools, const int* indices);
+template __global__ void kernScatter<int>(int n, int* odata, const int* idata, const int* bools,
+                                          const int* indices);
 
 __global__ void kernel_inclusiveToExclusive(int n, int identity, const int* iData, int* oData)
 {
@@ -48,10 +48,12 @@ __global__ void kernel_inclusiveToExclusive(int n, int identity, const int* iDat
     if (index >= n)
     {
         return;
-    } else if (index == 0)
+    }
+    else if (index == 0)
     {
         oData[index] = identity;
-    } else
+    }
+    else
     {
         oData[index] = iData[index - 1];
     }

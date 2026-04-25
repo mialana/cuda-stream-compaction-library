@@ -34,8 +34,8 @@ void scan(int n, int* odata, const int* idata)
 {
     // Copy data from host to device
     thrust::host_vector<int> host_idata(idata, idata + n);  // thrust host vector
-    thrust::device_vector<int> dev_idata = host_idata;      // built-in assignment conversion
-    thrust::device_vector<int> dev_odata(n);                // for output
+    thrust::device_vector<int> dev_idata = host_idata;  // built-in assignment conversion
+    thrust::device_vector<int> dev_odata(n);  // for output
 
     timer().startGpuTimer();
 
@@ -113,11 +113,9 @@ int compactByKey(int n, int* out_keys, float* out_values, const int* in_keys, co
 
     // Call remove_if: it shifts surviving elements to the front.
     // Remove pairs if key == 0.
-    auto new_end = thrust::remove_if(zipped_begin, 
-                                     zipped_end,
-                                     [] __device__(const thrust::tuple<int, float>& tup) {
-                                         return thrust::get<0>(tup) == 0;
-                                     });
+    auto new_end = thrust::remove_if(zipped_begin, zipped_end,
+                                     [] __device__(const thrust::tuple<int, float>& tup)
+                                     { return thrust::get<0>(tup) == 0; });
 
     // Compute the new count.
     int count = new_end - zipped_begin;

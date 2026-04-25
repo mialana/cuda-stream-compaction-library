@@ -16,9 +16,7 @@ PerformanceTimer& timer()
 }
 
 // scanA is input and scanB is output for this iteration
-__global__ void kernel_performNaiveScanIteration(const int n,
-                                                 const int iter,
-                                                 const int* scanA,
+__global__ void kernel_performNaiveScanIteration(const int n, const int iter, const int* scanA,
                                                  int* scanB)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -32,7 +30,8 @@ __global__ void kernel_performNaiveScanIteration(const int n,
     if (index < iter_startIdx)
     {
         scanB[index] = scanA[index];
-    } else
+    }
+    else
     {
         scanB[index] = scanA[index - iter_startIdx] + scanA[index];
     }
@@ -85,9 +84,7 @@ void scan(int n, int* odata, const int* idata)
 
     timer().endGpuTimer();
 
-    cudaMemcpy(odata,
-               dev_scanB,
-               sizeof(int) * n,
+    cudaMemcpy(odata, dev_scanB, sizeof(int) * n,
                cudaMemcpyDeviceToHost);  // result ends up in scanB
 
     cudaFree(dev_scanA);

@@ -29,7 +29,7 @@ void scan(int n, int* odata, const int* idata)
         usingTimer = true;
     }
 
-    odata[0] = 0;             // identity is 0
+    odata[0] = 0;  // identity is 0
 
     int prev_sum = idata[0];  // save prev sum for access ease
     for (int j = 1; j < n; j++)
