@@ -141,14 +141,13 @@ void scan(int n, int block_size, int* dev_block_sums, const int* dev_idata, int*
                                      kernel_offset(block_span) * sizeof(int)>>>(padded_n, dev_idata,
                                                                                 dev_block_sums,
                                                                                 dev_odata);
-    CUDA_CHECK("`kernel_scan_intra_block_shared` launch failed.");
+    CUDA_KERNEL_CHECK();
 
     if (num_blocks > 1)
     {
         // Allocate temporary buffer for recursive scan of block sums
         int* dev_new_o_data;
-        cudaMalloc(reinterpret_cast<void**>(&dev_new_o_data), sizeof(int) * num_blocks);
-        CUDA_CHECK("CUDA malloc for recursive block sums failed.");
+        CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_new_o_data), sizeof(int) * num_blocks));
 
         // Recursively scan the block sums
         scan(num_blocks, block_size, dev_block_sums, dev_block_sums, dev_new_o_data);
@@ -168,25 +167,21 @@ void scan_wrapper(int n, int* odata, const int* idata)
 {
     int padded_n = 1 << ilog2_ceil(n);
 
-    int total_blocks = divup(padded_n, 2 * BLOCK_SIZE);
+    int total_blocks = divup(padded_n, 2 * kBLOCK_SIZE);
 
     // create two device arrays
     int* dev_idata;
     int* dev_odata;
     int* dev_block_sums;
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_idata), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for scan array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_idata), sizeof(int) * padded_n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_odata), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for device out data failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_odata), sizeof(int) * padded_n));
 
     // create new array to store total sum of each block
-    cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * total_blocks);
-    CUDA_CHECK("CUDA malloc for block sums array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * total_blocks));
 
-    cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    CUDA_CHECK("Memory copy from input data to device idata array failed.");
+    CUDA_CHECK(cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice));
 
     cudaDeviceSynchronize();
 
@@ -197,14 +192,15 @@ void scan_wrapper(int n, int* odata, const int* idata)
         using_timer = true;
     }
 
-    scan(n, BLOCK_SIZE, dev_block_sums, dev_idata, dev_odata);
+    scan(n, kBLOCK_SIZE, dev_block_sums, dev_idata, dev_odata);
 
     if (using_timer)
     {
         get_timer().end_timer<GPU>();
     }
 
-    cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);  // only copy n elements
+    CUDA_CHECK(cudaMemcpy(odata, dev_odata, sizeof(int) * n,
+                          cudaMemcpyDeviceToHost));  // only copy n elements
 
     cudaFree(dev_idata);  // can't forget memory leaks!
     cudaFree(dev_odata);
@@ -225,8 +221,8 @@ int compact(int n, int block_size, const int* dev_idata, int* dev_bools, int* de
     int last_index;
     int last_bool;
 
-    cudaMemcpy(&last_index, &dev_indices[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(&last_bool, &dev_bools[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaMemcpy(&last_index, &dev_indices[n - 1], sizeof(int), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&last_bool, &dev_bools[n - 1], sizeof(int), cudaMemcpyDeviceToHost));
 
     return last_index + last_bool;
 }
@@ -238,7 +234,7 @@ int compact(int n, int block_size, const int* dev_idata, int* dev_bools, int* de
 int compact_wrapper(int n, const int* idata, int* odata)
 {
     int padded_n = 1 << ilog2_ceil(n);  // pad to nearest power of 2
-    int total_blocks = divup(padded_n, 2 * BLOCK_SIZE);  // for scan block sums
+    int total_blocks = divup(padded_n, 2 * kBLOCK_SIZE);  // for scan block sums
 
     // Allocate device arrays
     int* dev_idata;
@@ -247,24 +243,18 @@ int compact_wrapper(int n, const int* idata, int* odata)
     int* dev_indices;
     int* dev_block_sums;
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_idata), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for dev_idata in compactWrapper failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_idata), sizeof(int) * padded_n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_odata), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for dev_odata in compactWrapper failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_odata), sizeof(int) * padded_n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_bools), sizeof(int) * n);
-    CUDA_CHECK("CUDA malloc for dev_bools in compactWrapper failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_bools), sizeof(int) * n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n);
-    CUDA_CHECK("CUDA malloc for dev_indices in compactWrapper failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * total_blocks);
-    CUDA_CHECK("CUDA malloc for dev_blockSums in compactWrapper failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * total_blocks));
 
     // Copy input data from host to device
-    cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    CUDA_CHECK("CUDA memcpy for idata to dev_idata in compactWrapper failed.");
+    CUDA_CHECK(cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice));
 
     // Run the compaction and time it
     bool using_timer = false;
@@ -274,7 +264,7 @@ int compact_wrapper(int n, const int* idata, int* odata)
         using_timer = true;
     }
 
-    int compact_count = compact(n, BLOCK_SIZE, dev_idata, dev_bools, dev_indices, dev_block_sums,
+    int compact_count = compact(n, kBLOCK_SIZE, dev_idata, dev_bools, dev_indices, dev_block_sums,
                                 dev_odata);
 
     if (using_timer)
@@ -283,8 +273,7 @@ int compact_wrapper(int n, const int* idata, int* odata)
     }
 
     // Copy the compacted result back to host; note that compactCount elements are valid
-    cudaMemcpy(odata, dev_odata, sizeof(int) * compact_count, cudaMemcpyDeviceToHost);
-    CUDA_CHECK("CUDA memcpy for dev_odata to host in compactWrapper failed.");
+    CUDA_CHECK(cudaMemcpy(odata, dev_odata, sizeof(int) * compact_count, cudaMemcpyDeviceToHost));
 
     // Free device memory
     cudaFree(dev_idata);
@@ -316,8 +305,8 @@ int compact_by_key(int n, int block_size, const int* dev_idata, const int* dev_i
     int last_index;
     int last_bool;
 
-    cudaMemcpy(&last_index, &dev_indices[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(&last_bool, &dev_bools[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaMemcpy(&last_index, &dev_indices[n - 1], sizeof(int), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(&last_bool, &dev_bools[n - 1], sizeof(int), cudaMemcpyDeviceToHost));
 
     return last_index + last_bool;
 }
@@ -328,28 +317,28 @@ int compact_by_key_wrapper(int n, const int* ikeys, const int* ivalues, int* oke
     int *dev_ikeys, *dev_okeys, *dev_bools, *dev_indices, *dev_block_sums;
 
     // Allocate device memory
-    cudaMalloc(reinterpret_cast<void**>(&dev_ivalues), n * sizeof(int));
-    cudaMalloc(reinterpret_cast<void**>(&dev_ovalues), n * sizeof(int));
-    cudaMalloc(reinterpret_cast<void**>(&dev_ikeys), n * sizeof(int));
-    cudaMalloc(reinterpret_cast<void**>(&dev_okeys), n * sizeof(int));
-    cudaMalloc(reinterpret_cast<void**>(&dev_bools), n * sizeof(int));
-    cudaMalloc(reinterpret_cast<void**>(&dev_indices), n * sizeof(int));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_ivalues), n * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_ovalues), n * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_ikeys), n * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_okeys), n * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_bools), n * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_indices), n * sizeof(int)));
 
-    int blocks = divup(n, BLOCK_SIZE);
-    cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), blocks * sizeof(int));
+    int blocks = divup(n, kBLOCK_SIZE);
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), blocks * sizeof(int)));
 
     // Copy input data from host to device.
-    cudaMemcpy(dev_ivalues, ivalues, n * sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(dev_ikeys, ikeys, n * sizeof(int), cudaMemcpyHostToDevice);
+    CUDA_CHECK(cudaMemcpy(dev_ivalues, ivalues, n * sizeof(int), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(dev_ikeys, ikeys, n * sizeof(int), cudaMemcpyHostToDevice));
 
     // Call the templated device function from shared.h.
     // (This kernel launches both key and value scatter)
-    int count = compact_by_key(n, BLOCK_SIZE, dev_bools, dev_okeys, dev_ivalues, dev_ovalues,
+    int count = compact_by_key(n, kBLOCK_SIZE, dev_bools, dev_okeys, dev_ivalues, dev_ovalues,
                                dev_ikeys, dev_block_sums, dev_indices);
 
     // Copy compacted results back to host.
-    cudaMemcpy(ovalues, dev_ovalues, count * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(okeys, dev_okeys, count * sizeof(int), cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaMemcpy(ovalues, dev_ovalues, count * sizeof(int), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(okeys, dev_okeys, count * sizeof(int), cudaMemcpyDeviceToHost));
 
     // Free device memory.
     cudaFree(dev_ivalues);

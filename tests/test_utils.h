@@ -19,7 +19,7 @@ concept ContainerIntegral
          };
 
 template<ContainerIntegral T>
-void fill_container_random(T& a, int max_val)
+void fill_container_random(T& ctn, int max_val)
 {
     using Element = std::ranges::range_value_t<T>;
 
@@ -27,13 +27,23 @@ void fill_container_random(T& a, int max_val)
     std::mt19937 gen(rd());  // initialize Mersenne Twister engine
     std::uniform_int_distribution<Element> distrib(0, max_val);
 
-    for (int i = 0; i < a.size(); ++i)
+    for (int i = 0; i < ctn.size(); ++i)
     {
-        a[i] = distrib(gen);
+        ctn[i] = distrib(gen);
     }
 }
 
 template<ContainerIntegral T>
-inline void print_container(const T& a)
+void print_container(const T& ctn, bool abridged = true)
 {
+    int n = static_cast<int>(ctn.size());
+    int max_size = abridged ? std::min(n, 16) : n;
+
+    std::cout << '\t' << "[ ";
+    for (int i = 0; i < max_size; ++i)
+    {
+        printf("%i ", static_cast<int>(ctn[i]));
+    }
+    if (abridged && max_size < n) std::cout << "...";
+    printf(" ] - count: %i\n", n);
 }

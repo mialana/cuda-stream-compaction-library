@@ -7,13 +7,27 @@
 #include <stdexcept>
 
 #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
-#define CUDA_CHECK(msg) check_cuda_error_fn(msg, FILENAME, __LINE__)
+#define CUDA_CHECK(call)                                                                           \
+    do                                                                                             \
+    {                                                                                              \
+        cudaError_t err = (call);                                                                  \
+        if (err != cudaSuccess)                                                                    \
+        {                                                                                          \
+            fprintf(stderr, "CUDA error at %s:%d: %s\n", __FILE__, __LINE__,                       \
+                    cudaGetErrorString(err));                                                      \
+            exit(EXIT_FAILURE);                                                                    \
+        }                                                                                          \
+    } while (0)
 
-#define BLOCK_SIZE 128
+#define CUDA_KERNEL_CHECK()                                                                        \
+    do                                                                                             \
+    {                                                                                              \
+        CUDA_CHECK(cudaGetLastError());                                                            \
+    } while (0)
 
-/**
- * Check for CUDA errors; print and exit if there was a problem.
- */
+constexpr int kBLOCK_SIZE = 128;
+
+// Check for CUDA errors; print and exit if there was a problem.
 void check_cuda_error_fn(const char* msg, const char* file = nullptr, int line = -1);
 
 inline int divup(int size, int div)

@@ -91,9 +91,9 @@ void scan(int n, const int block_size, int* dev_scan)
     for (int iter = 0; iter < num_layers; iter++)
     {
         // n/2, n/4, n/8, ... 1
-        unsigned blocks = divup(padded_n >> (iter + 1), BLOCK_SIZE);
-        kernel_efficient_up_sweep<<<blocks, BLOCK_SIZE>>>(padded_n, stride, prev_stride, dev_scan);
-        CUDA_CHECK("Perform Work-Efficient Scan Up Sweep Iteration CUDA kernel failed.");
+        unsigned blocks = divup(padded_n >> (iter + 1), kBLOCK_SIZE);
+        kernel_efficient_up_sweep<<<blocks, kBLOCK_SIZE>>>(padded_n, stride, prev_stride, dev_scan);
+        CUDA_KERNEL_CHECK();
 
         prev_stride = stride;
         stride = stride <<= 1;
@@ -101,15 +101,17 @@ void scan(int n, const int block_size, int* dev_scan)
 
     // set last value of dev_scan to 0
     int replacement = 0;
-    cudaMemcpy(&dev_scan[padded_n - 1], &replacement, sizeof(int), cudaMemcpyHostToDevice);
+    CUDA_CHECK(
+        cudaMemcpy(&dev_scan[padded_n - 1], &replacement, sizeof(int), cudaMemcpyHostToDevice));
 
     stride = static_cast<int>(padded_n);  // n, n/2, n/4, ... 2
     int next_stride = stride >> 1;  // n/2, n/4, ... 1
     for (int iter = num_layers; iter > 0; iter--)
     {
-        unsigned blocks = divup(padded_n >> iter, BLOCK_SIZE);
-        kernel_efficient_down_sweep<<<blocks, BLOCK_SIZE>>>(padded_n, stride, next_stride, dev_scan);
-        CUDA_CHECK("Perform Work-Efficient Scan Down Sweep Iteration CUDA kernel failed.");
+        unsigned blocks = divup(padded_n >> iter, kBLOCK_SIZE);
+        kernel_efficient_down_sweep<<<blocks, kBLOCK_SIZE>>>(padded_n, stride, next_stride,
+                                                             dev_scan);
+        CUDA_KERNEL_CHECK();
 
         stride = next_stride;
         next_stride >>= 1;  // n/2, n/4, n/8, n/16, ...
@@ -128,11 +130,9 @@ void scan_wrapper(int n, const int* idata, int* odata)
     // create two device arrays
     int* dev_scan;
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_scan), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for scan array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_scan), sizeof(int) * padded_n));
 
-    cudaMemcpy(dev_scan, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    CUDA_CHECK("Memory copy from input data to scan array failed.");
+    CUDA_CHECK(cudaMemcpy(dev_scan, idata, sizeof(int) * n, cudaMemcpyHostToDevice));
 
     cudaDeviceSynchronize();
 
@@ -143,14 +143,14 @@ void scan_wrapper(int n, const int* idata, int* odata)
         using_timer = true;
     }
 
-    scan(n, BLOCK_SIZE, dev_scan);
+    scan(n, kBLOCK_SIZE, dev_scan);
 
     if (using_timer)
     {
         get_timer().end_timer<GPU>();
     }
 
-    cudaMemcpy(odata, dev_scan, sizeof(int) * n, cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaMemcpy(odata, dev_scan, sizeof(int) * n, cudaMemcpyDeviceToHost));
 
     cudaFree(dev_scan);  // can't forget memory leaks!
 }
@@ -175,22 +175,17 @@ int compact(int n, int* odata, const int* idata)
     int* dev_bools;
     int* dev_indices;
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_idata), sizeof(int) * n);
-    CUDA_CHECK("CUDA malloc for idata array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_idata), sizeof(int) * n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_odata), sizeof(int) * n);
-    CUDA_CHECK("CUDA malloc for odata array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_odata), sizeof(int) * n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_bools), sizeof(int) * n);
-    CUDA_CHECK("CUDA malloc for bools array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_bools), sizeof(int) * n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n);
-    CUDA_CHECK("CUDA malloc for indices array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n));
 
-    cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    CUDA_CHECK("Memory copy from input data to idata array failed.");
-    cudaMemcpy(dev_bools, odata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    CUDA_CHECK("Memory copy from output data to odata array failed.");
+    CUDA_CHECK(cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice));
+
+    CUDA_CHECK(cudaMemcpy(dev_bools, odata, sizeof(int) * n, cudaMemcpyHostToDevice));
 
     cudaDeviceSynchronize();
 
@@ -199,24 +194,22 @@ int compact(int n, int* odata, const int* idata)
 
     stream_compaction::efficient::get_timer().start_timer<GPU>();
 
-    int blocks = divup(n, BLOCK_SIZE);
+    int blocks = divup(n, kBLOCK_SIZE);
 
     // reuse dev_idata for bools
-    common::kernel_map_to_boolean<<<blocks, BLOCK_SIZE>>>(n, dev_idata, dev_bools);
+    common::kernel_map_to_boolean<<<blocks, kBLOCK_SIZE>>>(n, dev_idata, dev_bools);
 
-    cudaMemcpy(bools, dev_bools, sizeof(int) * n, cudaMemcpyDeviceToHost);
-    CUDA_CHECK("Memory copy from device bools to indices array failed.");
+    CUDA_CHECK(cudaMemcpy(bools, dev_bools, sizeof(int) * n, cudaMemcpyDeviceToHost));
 
     scan_wrapper(n, indices, bools);
 
-    cudaMemcpy(dev_indices, indices, sizeof(int) * n, cudaMemcpyHostToDevice);
-    CUDA_CHECK("Memory copy from indices to device indices array failed.");
+    CUDA_CHECK(cudaMemcpy(dev_indices, indices, sizeof(int) * n, cudaMemcpyHostToDevice));
 
-    common::kernel_scatter<<<blocks, BLOCK_SIZE>>>(n, dev_bools, dev_indices, dev_idata, dev_odata);
+    common::kernel_scatter<<<blocks, kBLOCK_SIZE>>>(n, dev_bools, dev_indices, dev_idata, dev_odata);
 
     stream_compaction::efficient::get_timer().end_timer<GPU>();
 
-    cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);
+    CUDA_CHECK(cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost));
 
     cudaFree(dev_idata);
     cudaFree(dev_odata);

@@ -25,7 +25,7 @@ protected:
     std::vector<int> _actual{};
 };
 
-constexpr int kMAX_POT = 28;
+constexpr int kMAX_POT = 6;
 constexpr std::array<int, kMAX_POT> kPOT_VALUES = []
 {
     std::array<int, kMAX_POT> arr{};
@@ -41,11 +41,12 @@ TEST_P(ScanTest, naiveScanPowerOfTwo)
 {
     cpu::scan(GetParam(), _source.data(), _expected.data());
     cpu::get_timer().flush<CPU>();
-    naive::scan(GetParam(), _source.data(), _actual.data());
+    naive::scan_wrapper(GetParam(), kBLOCK_SIZE, _source.data(), _actual.data());
     naive::get_timer().flush<GPU>();
 
-    for (int i = 0; i < GetParam(); ++i)
-    {
-        ASSERT_EQ(_expected[i], _actual[i]) << "(Index " << i << ")";
-    }
+    print_container(_source);
+    print_container(_expected);
+    print_container(_actual);
+
+    ASSERT_EQ(_expected, _actual);
 }

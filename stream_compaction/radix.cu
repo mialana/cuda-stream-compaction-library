@@ -110,21 +110,16 @@ void sort_wrapper(int n, int max_bit_length, int block_size, const int* idata, i
     int* dev_block_sums;
     int* dev_indices;
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_idata), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for device idata array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_idata), sizeof(int) * padded_n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_odata), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for device odata array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_odata), sizeof(int) * padded_n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * block_sums);
-    CUDA_CHECK("CUDA malloc for device block sums array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * block_sums));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n);
-    CUDA_CHECK("CUDA malloc for device indices array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n));
 
     // Copy input data to device
-    cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    CUDA_CHECK("Memory copy from host data to device array failed.");
+    CUDA_CHECK(cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice));
 
     bool using_timer = false;
     if (!get_timer().gpu_timer_started)
@@ -141,8 +136,7 @@ void sort_wrapper(int n, int max_bit_length, int block_size, const int* idata, i
     }
 
     // Copy sorted data back to host
-    cudaMemcpy(odata, dev_idata, sizeof(int) * n, cudaMemcpyDeviceToHost);
-    CUDA_CHECK("Memory copy from device array to host data failed.");
+    CUDA_CHECK(cudaMemcpy(odata, dev_idata, sizeof(int) * n, cudaMemcpyDeviceToHost));
 
     // Free device memory
     cudaFree(dev_idata);
@@ -197,30 +191,22 @@ void sort_by_key_wrapper(int n, int max_bit_length, int block_size, const int* i
     int* dev_block_sums;
     int* dev_indices;
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_ikeys), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for device ikeys array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_ikeys), sizeof(int) * padded_n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_okeys), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for device okeys array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_okeys), sizeof(int) * padded_n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_ivalues), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for device ivalues array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_ivalues), sizeof(int) * padded_n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_ovalues), sizeof(int) * padded_n);
-    CUDA_CHECK("CUDA malloc for device ovalues array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_ovalues), sizeof(int) * padded_n));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * block_sums);
-    CUDA_CHECK("CUDA malloc for device block sums array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * block_sums));
 
-    cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n);
-    CUDA_CHECK("CUDA malloc for device indices array failed.");
+    CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n));
 
     // Copy input data to device
-    cudaMemcpy(dev_ikeys, ikeys, sizeof(int) * n, cudaMemcpyHostToDevice);
-    CUDA_CHECK("Memory copy from host ikeys to device array failed.");
+    CUDA_CHECK(cudaMemcpy(dev_ikeys, ikeys, sizeof(int) * n, cudaMemcpyHostToDevice));
 
-    cudaMemcpy(dev_ivalues, ivalues, sizeof(int) * n, cudaMemcpyHostToDevice);
-    CUDA_CHECK("Memory copy from host values to device array failed.");
+    CUDA_CHECK(cudaMemcpy(dev_ivalues, ivalues, sizeof(int) * n, cudaMemcpyHostToDevice));
 
     bool using_timer = false;
     if (!get_timer().gpu_timer_started)
@@ -238,11 +224,9 @@ void sort_by_key_wrapper(int n, int max_bit_length, int block_size, const int* i
     }
 
     // Copy sorted data back to host
-    cudaMemcpy(okeys, dev_ikeys, sizeof(int) * n, cudaMemcpyDeviceToHost);
-    CUDA_CHECK("Memory copy from device array to host data failed.");
+    CUDA_CHECK(cudaMemcpy(okeys, dev_ikeys, sizeof(int) * n, cudaMemcpyDeviceToHost));
 
-    cudaMemcpy(ovalues, dev_ivalues, sizeof(int) * n, cudaMemcpyDeviceToHost);
-    CUDA_CHECK("Memory copy from device array to host data failed.");
+    CUDA_CHECK(cudaMemcpy(ovalues, dev_ivalues, sizeof(int) * n, cudaMemcpyDeviceToHost));
 
     // Free device memory
     cudaFree(dev_ikeys);
