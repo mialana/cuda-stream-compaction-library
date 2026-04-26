@@ -2,8 +2,8 @@
 
 #include <random>
 
-constexpr int SIZE = 1 << 24;
-constexpr int NPOT = SIZE - 3;  // non-power-of-two
+constexpr int kSIZE = 1 << 24;
+constexpr int kNPOT = kSIZE - 3;  // non-power-of-two
 
 template<std::integral T, std::size_t N>
 inline void fill_array_random(std::array<T, N>& a, int max_val)

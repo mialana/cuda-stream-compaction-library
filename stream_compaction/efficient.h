@@ -2,16 +2,13 @@
 
 #include "common.h"
 
-namespace StreamCompaction
+namespace stream_compaction::efficient
 {
-namespace Efficient
-{
-StreamCompaction::Common::PerformanceTimer& get_timer();
+stream_compaction::common::PerformanceTimer& get_timer();
 
-void scan(int n, int* dev_scan, const int blockSize);
+void scan(int n, int block_size, int* dev_scan);
 
-void scanWrapper(int n, int* odata, const int* idata);
+void scan_wrapper(int n, const int* idata, int* odata);
 
-int compact(int n, int* odata, const int* idata);
-}  // namespace Efficient
-}  // namespace StreamCompaction
+int compact(int n, const int* idata, int* odata);
+}  // namespace stream_compaction::efficient

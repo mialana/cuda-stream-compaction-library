@@ -2,12 +2,9 @@
 
 #include "common.h"
 
-namespace StreamCompaction
+namespace stream_compaction::naive
 {
-namespace Naive
-{
-StreamCompaction::Common::PerformanceTimer& get_timer();
+stream_compaction::common::PerformanceTimer& get_timer();
 
-void scan(int n, int* odata, const int* idata);
-}  // namespace Naive
-}  // namespace StreamCompaction
+void scan(int n, const int* idata, int* odata);
+}  // namespace stream_compaction::naive

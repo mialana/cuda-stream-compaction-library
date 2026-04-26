@@ -1,29 +1,29 @@
 find_package(CUDAToolkit REQUIRED)
 
 set(LIB_HEADERS
-    "common.h"
-    "cpu.h"
-    "naive.h"
-    "efficient.h"
-    "thrust.h"
-    "radix.h"
-    "shared.h"
+        "common.h"
+        "cpu.h"
+        "naive.h"
+        "efficient.h"
+        "thrust_wrapper.h"
+        "radix.h"
+        "shared.h"
 )
 
 set(LIB_SOURCES
-    "common.cu"
-    "cpu.cu"
-    "naive.cu"
-    "efficient.cu"
-    "thrust.cu"
-    "radix.cu"
-    "shared.cu"
+        "common.cu"
+        "cpu.cu"
+        "naive.cu"
+        "efficient.cu"
+        "thrust_wrapper.cu"
+        "radix.cu"
+        "shared.cu"
 )
 
 add_library(${PROJECT_NAME} SHARED ${LIB_SOURCES} ${LIB_HEADERS})
 
 target_include_directories(${PROJECT_NAME} PUBLIC
-    "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>" # one directory up
+        "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>" # one directory up
 )
 
 find_package(CCCL REQUIRED CONFIG)

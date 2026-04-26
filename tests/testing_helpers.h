@@ -5,16 +5,16 @@
 #include <chrono>
 #include <random>
 
-constexpr int SIZE = 1 << 24;
-constexpr int NPOT = SIZE - 3;  // Non-Power-Of-Two
+constexpr int kSIZE = 1 << 24;
+constexpr int kNPOT = kSIZE - 3;  // Non-Power-Of-Two
 
-constexpr char PINK[] = "\033[1;35m";
-constexpr char RED[] = "\033[1;31m";
-constexpr char GREEN[] = "\033[1;32m";
-constexpr char RESET[] = "\033[0m";
+constexpr char kPINK[] = "\033[1;35m";
+constexpr char kRED[] = "\033[1;31m";
+constexpr char kGREEN[] = "\033[1;32m";
+constexpr char kRESET[] = "\033[0m";
 
 template<std::integral T>
-inline bool cmpArrays(int n, T* a, T* b)
+inline bool cmp_arrays(int n, T* a, T* b)
 {
     for (int i = 0; i < n; ++i)
     {
@@ -29,20 +29,20 @@ inline bool cmpArrays(int n, T* a, T* b)
     return true;
 }
 
-inline void printDesc(const char* desc)
+inline void print_desc(const char* desc)
 {
-    std::cout << PINK << "=== " << desc << " ===" << RESET << std::endl;
+    std::cout << kPINK << "=== " << desc << " ===" << kRESET << std::endl;
 }
 
 template<std::integral T>
-inline void printCmpResult(int n, T* a, T* b)
+inline void print_cmp_result(int n, T* a, T* b)
 {
-    if (cmpArrays(n, a, b)) std::cout << RED << "FAILED";
-    else std::cout << GREEN << "PASSED";
-    std::cout << RESET << std::endl;
+    if (cmp_arrays(n, a, b)) std::cout << kRED << "FAILED";
+    else std::cout << kGREEN << "PASSED";
+    std::cout << kRESET << std::endl;
 }
 
-inline void zeroArray(int n, int* a)
+inline void zero_array(int n, int* a)
 {
     for (int i = 0; i < n; ++i)
     {
@@ -50,7 +50,7 @@ inline void zeroArray(int n, int* a)
     }
 }
 
-inline void onesArray(int n, int* a)
+inline void ones_array(int n, int* a)
 {
     for (int i = 0; i < n; ++i)
     {
@@ -59,7 +59,7 @@ inline void onesArray(int n, int* a)
 }
 
 template<std::integral T>
-inline void genArray(int n, T* a, int max_val)
+inline void gen_array(int n, T* a, int max_val)
 {
     std::random_device rd;
     std::mt19937 gen(rd());  // initialize Mersenne Twister engine
@@ -72,7 +72,7 @@ inline void genArray(int n, T* a, int max_val)
 }
 
 template<std::integral T>
-inline void genConsecutiveArray(int n, T* a)
+inline void gen_consecutive_array(int n, T* a)
 {
     for (int i = 0; i < n; ++i)
     {
@@ -81,13 +81,13 @@ inline void genConsecutiveArray(int n, T* a)
 }
 
 template<std::integral T>
-inline void copyArray(int n, const T* a, T* out_copy)
+inline void copy_array(int n, const T* a, T* out_copy)
 {
     memcpy(out_copy, a, n * sizeof(T));
 }
 
 template<std::integral T>
-inline void printArray(int n, T* a, bool abridged = true)
+inline void print_array(int n, T* a, bool abridged = true)
 {
     int max_size = abridged ? std::min(n, 16) : n;
 
@@ -98,10 +98,4 @@ inline void printArray(int n, T* a, bool abridged = true)
     }
     if (abridged) std::cout << "...";
     printf(" ] - count: %i\n", n);
-}
-
-template<typename T>
-inline void printElapsedTime(T time)
-{
-    std::cout << '\t' << "ELAPSED TIME: " << time << "ms" << std::endl;
 }

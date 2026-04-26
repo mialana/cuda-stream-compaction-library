@@ -6,106 +6,93 @@
 #define LOG_NUM_BANKS 5
 #define CONFLICT_FREE_OFFSET(n) ((n) >> NUM_BANKS + (n) >> (2 * LOG_NUM_BANKS))
 
-namespace StreamCompaction
-{
-namespace Shared
+namespace stream_compaction::shared
 {
 
-StreamCompaction::Common::PerformanceTimer& get_timer();
+common::PerformanceTimer& get_timer();
 
-void scan(int n, const int* dev_idata, int* dev_odata, int* dev_blockSums, const int blockSize);
+void scan(int n, int block_size, int* dev_block_sums, const int* dev_idata, int* dev_odata);
 
-void scanWrapper(int n, int* odata, const int* idata);
+void scan_wrapper(int n, int* odata, const int* idata);
 
-int compact(int n, const int* dev_idata, int* dev_odata, int* dev_bools, int* dev_indices,
-            int* dev_blockSums, int blockSize);
+int compact(int n, int block_size, int* dev_bools, int* dev_block_sums, int* dev_indices,
+            const int* dev_idata, int* dev_odata);
 
-int compactWrapper(int n, int* odata, const int* idata);
+int compact_wrapper(int n, const int* idata, int* odata);
 
 template<typename T>
-inline int compactByKey(int n, const T* dev_ivalues, T* dev_ovalues, const int* dev_idata,
-                        int* dev_odata, int* dev_bools, int* dev_indices, int* dev_blockSums,
-                        int blockSize)
+inline int compact_by_key(int n, int* dev_indices, int* dev_block_sums, int* dev_bools,
+                          const T* dev_ivalues, const int* dev_idata, T* dev_ovalues,
+                          int* dev_odata, int block_size)
 {
-    int blocks = divup(n, blockSize);
+    int blocks = divup(n, block_size);
 
-    Common::kernMapToBoolean<<<blocks, blockSize>>>(n, dev_bools, dev_idata);
+    common::kernel_map_to_boolean<<<blocks, block_size>>>(n, dev_idata, dev_bools);
 
-    scan(n, dev_bools, dev_indices, dev_blockSums, blockSize);
+    scan(n, block_size, dev_block_sums, dev_bools, dev_indices);
 
-    Common::kernScatter<int>
-        <<<blocks, blockSize>>>(n, dev_odata, dev_idata, dev_bools, dev_indices);
+    common::kernel_scatter<int>
+        <<<blocks, block_size>>>(n, dev_bools, dev_indices, dev_idata, dev_odata);
 
     cudaDeviceSynchronize();
 
-    Common::kernScatter<T>
-        <<<blocks, blockSize>>>(n, dev_ovalues, dev_ivalues, dev_bools, dev_indices);
+    common::kernel_scatter<T>
+        <<<blocks, block_size>>>(n, dev_bools, dev_indices, dev_ivalues, dev_ovalues);
 
-    int lastIndex;
-    int lastBool;
+    int last_index;
+    int last_bool;
 
-    cudaMemcpy(&lastIndex, &dev_indices[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(&lastBool, &dev_bools[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&last_index, &dev_indices[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(&last_bool, &dev_bools[n - 1], sizeof(int), cudaMemcpyDeviceToHost);
 
-    return lastIndex + lastBool;
+    return last_index + last_bool;
 }
 
-// Host wrapper for compactByKey. It accepts host arrays for values and keys.
-// For example, h_ivalues and h_ikeys are input arrays,
-// h_ovalues and h_okeys will receive the compacted results.
+// Host wrapper for compact_by_key. It accepts host arrays for values and keys.
+// For example, ivalues and ikeys are input arrays,
+// ovalues and okeys will receive the compacted results.
 // The function returns the number of surviving (compacted) elements.
 template<typename T>
-inline int compactByKeyWrapper(int n,
-                               T* h_ovalues,  // output values (host)
-                               int* h_okeys,  // output keys (host)
-                               const T* h_ivalues,  // input values (host)
-                               const int* h_ikeys)  // input keys (host)
+inline int compact_by_key_wrapper(int n, const int* ikeys, const T* ivalues, int* okeys, T* ovalues)
 {
-    T *d_ivalues, *d_ovalues;
-    int *d_ikeys, *d_okeys, *d_bools, *d_indices, *d_blockSums;
+    T *dev_ivalues, *dev_ovalues;
+    int *dev_ikeys, *dev_okeys, *dev_bools, *dev_indices, *dev_block_sums;
 
     // Allocate device memory
-    cudaMalloc((void**)&d_ivalues, n * sizeof(T));
-    cudaMalloc((void**)&d_ovalues, n * sizeof(T));
-    cudaMalloc((void**)&d_ikeys, n * sizeof(int));
-    cudaMalloc((void**)&d_okeys, n * sizeof(int));
-    cudaMalloc((void**)&d_bools, n * sizeof(int));
-    cudaMalloc((void**)&d_indices, n * sizeof(int));
+    cudaMalloc(reinterpret_cast<void**>(&dev_ivalues), n * sizeof(T));
+    cudaMalloc(reinterpret_cast<void**>(&dev_ovalues), n * sizeof(T));
+    cudaMalloc(reinterpret_cast<void**>(&dev_ikeys), n * sizeof(int));
+    cudaMalloc(reinterpret_cast<void**>(&dev_okeys), n * sizeof(int));
+    cudaMalloc(reinterpret_cast<void**>(&dev_bools), n * sizeof(int));
+    cudaMalloc(reinterpret_cast<void**>(&dev_indices), n * sizeof(int));
+
     int blocks = divup(n, BLOCK_SIZE);
-    cudaMalloc((void**)&d_blockSums, blocks * sizeof(int));
+    cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), blocks * sizeof(int));
 
     // Copy input data from host to device.
-    cudaMemcpy(d_ivalues, h_ivalues, n * sizeof(T), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_ikeys, h_ikeys, n * sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_ivalues, ivalues, n * sizeof(T), cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_ikeys, ikeys, n * sizeof(int), cudaMemcpyHostToDevice);
 
     // Call the templated device function from shared.h.
-    // (This kernel launches both key and value scatter.)
-    int count
-        = StreamCompaction::Shared::compactByKey<T>(n,
-                                                    d_ivalues,  // device input values
-                                                    d_ovalues,  // device output values
-                                                    d_ikeys,  // device input keys
-                                                    d_okeys,  // device output keys
-                                                    d_bools,  // temporary device bool array
-                                                    d_indices,  // temporary device indices array
-                                                    d_blockSums,  // temporary device blockSums array
-                                                    BLOCK_SIZE);
+    // (This kernel launches both key and value scatter)
+    int count = stream_compaction::shared::compact_by_key<T>(n, dev_ivalues, dev_ovalues, dev_ikeys,
+                                                             dev_okeys, dev_bools, dev_indices,
+                                                             dev_block_sums, BLOCK_SIZE);
 
     // Copy compacted results back to host.
-    cudaMemcpy(h_ovalues, d_ovalues, count * sizeof(T), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_okeys, d_okeys, count * sizeof(int), cudaMemcpyDeviceToHost);
+    cudaMemcpy(ovalues, dev_ovalues, count * sizeof(T), cudaMemcpyDeviceToHost);
+    cudaMemcpy(okeys, dev_okeys, count * sizeof(int), cudaMemcpyDeviceToHost);
 
     // Free device memory.
-    cudaFree(d_ivalues);
-    cudaFree(d_ovalues);
-    cudaFree(d_ikeys);
-    cudaFree(d_okeys);
-    cudaFree(d_bools);
-    cudaFree(d_indices);
-    cudaFree(d_blockSums);
+    cudaFree(dev_ivalues);
+    cudaFree(dev_ovalues);
+    cudaFree(dev_ikeys);
+    cudaFree(dev_okeys);
+    cudaFree(dev_bools);
+    cudaFree(dev_indices);
+    cudaFree(dev_block_sums);
 
     return count;
 }
 
-}  // namespace Shared
-}  // namespace StreamCompaction
+}  // namespace stream_compaction::shared

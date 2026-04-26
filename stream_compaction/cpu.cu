@@ -2,11 +2,10 @@
 
 #include "common.h"
 
-namespace StreamCompaction
+namespace stream_compaction::cpu
 {
-namespace CPU
-{
-using StreamCompaction::Common::PerformanceTimer;
+using stream_compaction::common::eTimerDevice;
+using stream_compaction::common::PerformanceTimer;
 
 PerformanceTimer& get_timer()
 {
@@ -20,13 +19,13 @@ PerformanceTimer& get_timer()
  * (Optional) For better understanding before starting moving to GPU, you can simulate your GPU scan
  * in this function first.
  */
-void scan(int n, int* odata, const int* idata)
+void scan(int n, const int* idata, int* odata)
 {
-    bool usingTimer = false;
+    bool using_timer = false;
     if (!get_timer().cpu_timer_started)  // added in order to call `scan` from other functions.
     {
-        get_timer().startCpuTimer();
-        usingTimer = true;
+        get_timer().start_timer<eTimerDevice::CPU>();
+        using_timer = true;
     }
 
     odata[0] = 0;  // identity is 0
@@ -38,9 +37,9 @@ void scan(int n, int* odata, const int* idata)
         prev_sum += idata[j];
     }
 
-    if (usingTimer)
+    if (using_timer)
     {
-        get_timer().endCpuTimer();
+        get_timer().end_timer<eTimerDevice::CPU>();
     }
 }
 
@@ -49,24 +48,24 @@ void scan(int n, int* odata, const int* idata)
  *
  * @returns the number of elements remaining after compaction.
  */
-int compactWithoutScan(int n, int* odata, const int* idata)
+int compact_without_scan(int n, const int* idata, int* odata)
 {
-    get_timer().startCpuTimer();
+    get_timer().start_timer<eTimerDevice::CPU>();
 
-    int outIndex = 0;  // pointer to current progress in out array
+    int out_index = 0;  // pointer to current progress in out array
 
     for (int i = 0; i < n; i++)
     {
-        int inVal = idata[i];
-        if (inVal != 0)
+        int in_val = idata[i];
+        if (in_val != 0)
         {
-            odata[outIndex] = inVal;
-            outIndex++;
+            odata[out_index] = in_val;
+            out_index++;
         }
     }
 
-    get_timer().endCpuTimer();
-    return outIndex;
+    get_timer().end_timer<eTimerDevice::CPU>();
+    return out_index;
 }
 
 /**
@@ -74,31 +73,30 @@ int compactWithoutScan(int n, int* odata, const int* idata)
  *
  * @returns the number of elements remaining after compaction.
  */
-int compactWithScan(int n, int* odata, const int* idata)
+int compact_with_scan(int n, const int* idata, int* odata)
 {
-    get_timer().startCpuTimer();
+    get_timer().start_timer<eTimerDevice::CPU>();
 
-    int* isNotZero = new int[n];
-    int* scan_isNotZero = new int[n];
+    int* is_not_zero = new int[n];
+    int* scan_is_not_zero = new int[n];
 
     for (int i = 0; i < n; i++)
     {
-        isNotZero[i] = idata[i] != 0 ? 1 : 0;  // val is 1 at i if idata[i] != 0, else 0
+        is_not_zero[i] = idata[i] != 0 ? 1 : 0;  // val is 1 at i if idata[i] != 0, else 0
     }
 
-    scan(n, scan_isNotZero, isNotZero);  // scan result is index in final array
+    scan(n, is_not_zero, scan_is_not_zero);  // scan result is index in final array
 
     for (int i = 0; i < n; i++)
     {
-        if (isNotZero[i])
+        if (is_not_zero[i])
         {
-            odata[scan_isNotZero[i]] = idata[i];
+            odata[scan_is_not_zero[i]] = idata[i];
         }
     }
 
-    get_timer().endCpuTimer();
+    get_timer().end_timer<eTimerDevice::CPU>();
 
-    return scan_isNotZero[n - 1] + isNotZero[n - 1];  // due to exclusive scan
+    return scan_is_not_zero[n - 1] + is_not_zero[n - 1];  // due to exclusive scan
 }
-}  // namespace CPU
-}  // namespace StreamCompaction
+}  // namespace stream_compaction::cpu

@@ -12,6 +12,6 @@ protected:
         fill_array_random(b, 64);
     }
 
-    std::array<int, SIZE> a{};
-    std::array<int, SIZE> b{};
+    std::array<int, kSIZE> a{};
+    std::array<int, kSIZE> b{};
 };

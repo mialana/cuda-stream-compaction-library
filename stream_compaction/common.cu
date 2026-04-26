@@ -1,6 +1,6 @@
 #include "common.h"
 
-void check_CUDA_error_fn(const char* msg, const char* file, int line)
+void check_cuda_error_fn(const char* msg, const char* file, int line)
 {
     cudaError_t err = cudaGetLastError();
     if (cudaSuccess == err)
@@ -17,33 +17,31 @@ void check_CUDA_error_fn(const char* msg, const char* file, int line)
     exit(EXIT_FAILURE);
 }
 
-namespace StreamCompaction
-{
-namespace Common
+namespace stream_compaction::common
 {
 
 /**
  * Maps an array to an array of 0s and 1s for stream compaction. Elements
  * which map to 0 will be removed, and elements which map to 1 will be kept.
  */
-__global__ void kernMapToBoolean(int n, int* bools, const int* idata)
+__global__ void kernel_map_to_boolean(int n, const int* idata, int* out_bools)
 {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (index >= n)
     {
         return;
     }
 
-    bools[index] = idata[index] == 0 ? 0 : 1;
+    out_bools[index] = idata[index] == 0 ? 0 : 1;
 }
 
-template __global__ void kernScatter<int>(int n, int* odata, const int* idata, const int* bools,
-                                          const int* indices);
+template __global__ void kernel_scatter<int>(int n, const int* bools, const int* indices,
+                                             const int* idata, int* odata);
 
-__global__ void kernel_inclusiveToExclusive(int n, int identity, const int* iData, int* oData)
+__global__ void kernel_inclusive_to_exclusive(int n, int identity, const int* idata, int* odata)
 {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (index >= n)
     {
@@ -51,17 +49,17 @@ __global__ void kernel_inclusiveToExclusive(int n, int identity, const int* iDat
     }
     else if (index == 0)
     {
-        oData[index] = identity;
+        odata[index] = identity;
     }
-    else {
-        oData[index] = iData[index - 1];
+    else
+    {
+        odata[index] = idata[index - 1];
     }
 }
 
-__global__ void kernel_setDeviceArrayValue(int* arr, const int index, const int value)
+__global__ void kernel_set_device_array_value(int* arr, int index, int value)
 {
     arr[index] = value;  // round up to nearest power of two
 }
 
-}  // namespace Common
-}  // namespace StreamCompaction
+}  // namespace stream_compaction::common

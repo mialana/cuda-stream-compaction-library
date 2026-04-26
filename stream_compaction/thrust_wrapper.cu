@@ -5,19 +5,16 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 #include <thrust/remove.h>
-#include <thrust/copy.h>
-#include <thrust/tuple.h>
 #include <thrust/scan.h>
 #include <thrust/sort.h>
 
 #include "common.h"
-#include "thrust.h"
+#include "thrust_wrapper.h"
 
-namespace StreamCompaction
+namespace stream_compaction::thrust_wrapper
 {
-namespace Thrust
-{
-using StreamCompaction::Common::PerformanceTimer;
+using stream_compaction::common::eTimerDevice;
+using stream_compaction::common::PerformanceTimer;
 
 using thrust::host_vector;
 
@@ -30,68 +27,68 @@ PerformanceTimer& get_timer()
 /**
  * Performs prefix-sum (aka scan) on idata, storing the result into odata.
  */
-void scan(int n, int* odata, const int* idata)
+void scan(int n, const int* idata, int* odata)
 {
     // Copy data from host to device
     thrust::host_vector<int> host_idata(idata, idata + n);  // thrust host vector
     thrust::device_vector<int> dev_idata = host_idata;  // built-in assignment conversion
     thrust::device_vector<int> dev_odata(n);  // for output
 
-    get_timer().startGpuTimer();
+    get_timer().start_timer<eTimerDevice::GPU>();
 
     thrust::exclusive_scan(dev_idata.begin(), dev_idata.end(), dev_odata.begin());
 
-    get_timer().endGpuTimer();
+    get_timer().end_timer<eTimerDevice::GPU>();
 
     // copy result back to host
     thrust::copy(dev_odata.begin(), dev_odata.end(), odata);
 }
 
-void radixSort(int n, int* o_data, const int* i_data)
+void radix_sort(int n, const int* idata, int* odata)
 {
-    thrust::device_vector<int> d_copy(i_data, i_data + n);
+    thrust::device_vector<int> dev_copy(idata, idata + n);
 
-    bool usingTimer = false;
+    bool using_timer = false;
     if (!get_timer().gpu_timer_started)
     {
-        get_timer().startGpuTimer();
-        usingTimer = true;
+        get_timer().start_timer<eTimerDevice::GPU>();
+        using_timer = true;
     }
 
-    thrust::sort(d_copy.begin(), d_copy.end());
+    thrust::sort(dev_copy.begin(), dev_copy.end());
 
-    if (usingTimer)
+    if (using_timer)
     {
-        get_timer().endGpuTimer();
+        get_timer().end_timer<eTimerDevice::GPU>();
     }
 
-    thrust::copy(d_copy.begin(), d_copy.end(), o_data);
+    thrust::copy(dev_copy.begin(), dev_copy.end(), odata);
 }
 
-void radixSortByKey(int n, int* out_keys, int* out_values, const int* in_keys, const int* in_values)
+void radix_sort_by_key(int n, const int* ikeys, const int* ivalues, int* okeys, int* ovalues)
 {
     // Wrap raw pointers with Thrust device pointers
-    thrust::device_vector<int> d_keys(in_keys, in_keys + n);
-    thrust::device_vector<int> d_values(in_values, in_values + n);
+    thrust::device_vector<int> dev_ikeys(ikeys, ikeys + n);
+    thrust::device_vector<int> dev_ivalues(ivalues, ivalues + n);
 
-    bool usingTimer = false;
+    bool using_timer = false;
     if (!get_timer().gpu_timer_started)
     {
-        get_timer().startGpuTimer();
-        usingTimer = true;
+        get_timer().start_timer<eTimerDevice::GPU>();
+        using_timer = true;
     }
 
     // Sort keys and reorder values accordingly
-    thrust::sort_by_key(d_keys.begin(), d_keys.end(), d_values.begin());
+    thrust::sort_by_key(dev_ikeys.begin(), dev_ikeys.end(), dev_ivalues.begin());
 
-    if (usingTimer)
+    if (using_timer)
     {
-        get_timer().endGpuTimer();
+        get_timer().end_timer<eTimerDevice::GPU>();
     }
 
     // Copy sorted keys and values back to host
-    thrust::copy(d_keys.begin(), d_keys.end(), out_keys);
-    thrust::copy(d_values.begin(), d_values.end(), out_values);
+    thrust::copy(dev_ikeys.begin(), dev_ikeys.end(), okeys);
+    thrust::copy(dev_ivalues.begin(), dev_ivalues.end(), ovalues);
 }
 
 /**
@@ -100,16 +97,17 @@ void radixSortByKey(int n, int* out_keys, int* out_values, const int* in_keys, c
  * for which the key is nonzero into out_keys and out_values.
  * Returns the number of surviving elements.
  */
-int compactByKey(int n, int* out_keys, float* out_values, const int* in_keys, const float* in_values)
+int compact_by_key(int n, const int* ikeys, const float* ivalues, int* okeys, float* ovalues)
 {
     // Wrap raw input arrays into Thrust device vectors.
-    thrust::device_vector<int> d_keys(in_keys, in_keys + n);
-    thrust::device_vector<float> d_vals(in_values, in_values + n);
+    thrust::device_vector<int> dev_ikeys(ikeys, ikeys + n);
+    thrust::device_vector<float> dev_ivalues(ivalues, ivalues + n);
 
     // Create a zipped iterator over (key, value)
     auto zipped_begin = thrust::make_zip_iterator(
-        thrust::make_tuple(d_keys.begin(), d_vals.begin()));
-    auto zipped_end = thrust::make_zip_iterator(thrust::make_tuple(d_keys.end(), d_vals.end()));
+        thrust::make_tuple(dev_ikeys.begin(), dev_ivalues.begin()));
+    auto zipped_end = thrust::make_zip_iterator(
+        thrust::make_tuple(dev_ikeys.end(), dev_ivalues.end()));
 
     // Call remove_if: it shifts surviving elements to the front.
     // Remove pairs if key == 0.
@@ -118,14 +116,13 @@ int compactByKey(int n, int* out_keys, float* out_values, const int* in_keys, co
                                      { return thrust::get<0>(tup) == 0; });
 
     // Compute the new count.
-    int count = new_end - zipped_begin;
+    int count = static_cast<int>(thrust::get<0>(new_end - zipped_begin));
 
     // Copy the surviving keys and values back to host memory.
-    thrust::copy(d_keys.begin(), d_keys.begin() + count, out_keys);
-    thrust::copy(d_vals.begin(), d_vals.begin() + count, out_values);
+    thrust::copy(dev_ikeys.begin(), dev_ikeys.begin() + count, okeys);
+    thrust::copy(dev_ivalues.begin(), dev_ivalues.begin() + count, ovalues);
 
     return count;
 }
 
-}  // namespace Thrust
-}  // namespace StreamCompaction
+}  // namespace stream_compaction::thrust_wrapper

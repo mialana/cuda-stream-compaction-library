@@ -2,16 +2,13 @@
 
 #include "common.h"
 
-namespace StreamCompaction
+namespace stream_compaction::cpu
 {
-namespace CPU
-{
-StreamCompaction::Common::PerformanceTimer& get_timer();
+stream_compaction::common::PerformanceTimer& get_timer();
 
-void scan(int n, int* odata, const int* idata);
+void scan(int n, const int* idata, int* odata);
 
-int compactWithoutScan(int n, int* odata, const int* idata);
+int compact_without_scan(int n, const int* idata, int* odata);
 
-int compactWithScan(int n, int* odata, const int* idata);
-}  // namespace CPU
-}  // namespace StreamCompaction
+int compact_with_scan(int n, const int* idata, int* odata);
+}  // namespace stream_compaction::cpu

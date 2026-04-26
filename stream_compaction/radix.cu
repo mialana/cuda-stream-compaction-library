@@ -4,63 +4,65 @@
 #include <cuda_runtime.h>
 
 #include "common.h"
-#include "efficient.h"
 #include "shared.h"
 
-using StreamCompaction::Common::PerformanceTimer;
+using stream_compaction::common::eTimerDevice;
+using stream_compaction::common::PerformanceTimer;
 
-PerformanceTimer& StreamCompaction::Radix::timer()
+namespace stream_compaction::radix
+{
+
+PerformanceTimer& timer()
 {
     static PerformanceTimer timer;
     return timer;
 }
 
-__device__ __host__ int StreamCompaction::Radix::_isolateBit(const int num, const int tgtBit)
+__device__ __host__ int kernel_isolate_bit(int n, int target_bit)
 {
-    return (num >> tgtBit) & 1;
+    return (n >> target_bit) & 1;
 }
 
-__global__ void StreamCompaction::Radix::_split(int n, int* data, int* notBit, const int tgtBit)
+__global__ void kernel_split(int n, int target_bit, const int* idata, int* out_not_lsb)
 {
-    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    unsigned index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
     if (index >= n)
     {
         return;
     }
 
-    notBit[index] = _isolateBit(data[index], tgtBit) ^ 1;  // not(target bit)
+    out_not_lsb[index] = kernel_isolate_bit(idata[index], target_bit) ^ 1;
 }
 
-__global__ void StreamCompaction::Radix::_computeScatterIndices(int n, int* indices,
-                                                                const int* idata, const int* scan,
-                                                                const int tgtBit)
+__global__ void kernel_compute_scatter_indices(int n, const int target_bit, const int* scan,
+                                               const int* idata, int* indices)
 {
-    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    unsigned index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (index >= n)
     {
         return;
     }
 
-    __shared__ int totalFalses;
+    __shared__ int total_falses;
     if (threadIdx.x == 0)
     {
-        totalFalses = (_isolateBit(idata[n - 1], tgtBit) ^ 1) + scan[n - 1];
+        total_falses = (kernel_isolate_bit(idata[n - 1], target_bit) ^ 1) + scan[n - 1];
     }
 
-    __syncthreads();  // wait for totalFalses
+    __syncthreads();  // wait for total_falses
 
     // if value is 1, we shift right by total falses minus falses before current index
     // if value is 0, we set to position based on how many other falses / 0s come before it
-    indices[index] = _isolateBit(idata[index], tgtBit) ? index + (totalFalses - scan[index])
-                                                       : scan[index];
+    indices[index] = kernel_isolate_bit(idata[index], target_bit)
+                         ? static_cast<int>(index) + (total_falses - scan[index])
+                         : scan[index];
 }
 
-__global__ void StreamCompaction::Radix::_scatter(int n, int* odata, const int* idata,
-                                                  const int* indices)
+__global__ void kernel_scatter(int n, const int* indices, const int* idata, int* odata)
 {
-    int index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    unsigned index = (blockIdx.x * blockDim.x) + threadIdx.x;
 
     if (index >= n)
     {
@@ -71,185 +73,183 @@ __global__ void StreamCompaction::Radix::_scatter(int n, int* odata, const int* 
     odata[address] = idata[index];  // Scatter the value to its new position
 }
 
-void StreamCompaction::Radix::sort(int n, int* dev_dataA, int* dev_dataB, int* dev_blockSums,
-                                   int* dev_indices, const int maxBitLength, const int blockSize)
+void sort(int n, int max_bit_length, int block_size, int* dev_block_sums, int* dev_indices,
+          int* dev_idata, int* dev_odata)
 {
-    for (int tgtBit = 0; tgtBit < maxBitLength; tgtBit++)
+    for (int target_bit = 0; target_bit < max_bit_length; target_bit++)
     {
-        unsigned blocks = divup(n, blockSize);
+        int blocks = divup(n, block_size);
 
         // Split data into 0s and 1s based on the target bit
-        _split<<<blocks, blockSize>>>(n, dev_dataA, dev_dataB, tgtBit);
+        kernel_split<<<blocks, block_size>>>(n, target_bit, dev_idata, dev_odata);
 
         // Perform scan on the split results
-        Shared::scan(n, dev_dataB, dev_dataB, dev_blockSums, blockSize);
+        shared::scan(n, block_size, dev_block_sums, dev_odata, dev_odata);
 
         // Scatter data based on the split results
-        _computeScatterIndices<<<blocks, blockSize>>>(n, dev_indices, dev_dataA, dev_dataB, tgtBit);
+        kernel_compute_scatter_indices<<<blocks, block_size>>>(n, target_bit, dev_odata, dev_idata,
+                                                               dev_indices);
 
-        _scatter<<<blocks, blockSize>>>(n, dev_dataB, dev_dataA, dev_indices);
+        kernel_scatter<<<blocks, block_size>>>(n, dev_indices, dev_idata, dev_odata);
 
         // Swap buffers (ping-pong)
-        int* temp = dev_dataA;
-        dev_dataA = dev_dataB;
-        dev_dataB = temp;
+        int* temp = dev_idata;
+        dev_idata = dev_odata;
+        dev_odata = temp;
     }
 }
 
-void StreamCompaction::Radix::sortWrapper(int n, int* odata, const int* idata,
-                                          const int maxBitLength, const int blockSize)
+void sort_wrapper(int n, int max_bit_length, int block_size, const int* idata, int* odata)
 {
-    const unsigned numLayers = ilog2ceil(n);
-    const unsigned long long paddedN = 1 << ilog2ceil(n);
-    const unsigned blockSums = divup(paddedN, 2 * blockSize);
+    const int padded_n = 1 << ilog2_ceil(n);
+    const int block_sums = divup(padded_n, 2 * block_size);
 
     // Allocate device memory for input/output data and scan
-    int* dev_dataA;
-    int* dev_dataB;
-    int* dev_blockSums;
+    int* dev_idata;
+    int* dev_odata;
+    int* dev_block_sums;
     int* dev_indices;
 
-    cudaMalloc((void**)&dev_dataA, sizeof(int) * paddedN);
+    cudaMalloc(reinterpret_cast<void**>(&dev_idata), sizeof(int) * padded_n);
     CUDA_CHECK("CUDA malloc for device idata array failed.");
 
-    cudaMalloc((void**)&dev_dataB, sizeof(int) * paddedN);
+    cudaMalloc(reinterpret_cast<void**>(&dev_odata), sizeof(int) * padded_n);
     CUDA_CHECK("CUDA malloc for device odata array failed.");
 
-    cudaMalloc((void**)&dev_blockSums, sizeof(int) * blockSums);
+    cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * block_sums);
     CUDA_CHECK("CUDA malloc for device block sums array failed.");
 
-    cudaMalloc((void**)&dev_indices, sizeof(int) * n);
+    cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n);
     CUDA_CHECK("CUDA malloc for device indices array failed.");
 
     // Copy input data to device
-    cudaMemcpy(dev_dataA, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
     CUDA_CHECK("Memory copy from host data to device array failed.");
 
-    bool usingTimer = false;
+    bool using_timer = false;
     if (!timer().gpu_timer_started)
     {
-        timer().startGpuTimer();
-        usingTimer = true;
+        timer().start_timer<eTimerDevice::GPU>();
+        using_timer = true;
     }
 
-    StreamCompaction::Radix::sort(n, dev_dataA, dev_dataB, dev_blockSums, dev_indices, maxBitLength,
-                                  blockSize);
+    sort(n, max_bit_length, block_size, dev_block_sums, dev_indices, dev_idata, dev_odata);
 
-    if (usingTimer)
+    if (using_timer)
     {
-        timer().endGpuTimer();
+        timer().end_timer<eTimerDevice::GPU>();
     }
 
     // Copy sorted data back to host
-    cudaMemcpy(odata, dev_dataA, sizeof(int) * n, cudaMemcpyDeviceToHost);
+    cudaMemcpy(odata, dev_idata, sizeof(int) * n, cudaMemcpyDeviceToHost);
     CUDA_CHECK("Memory copy from device array to host data failed.");
 
     // Free device memory
-    cudaFree(dev_dataA);
-    cudaFree(dev_dataB);
-    cudaFree(dev_blockSums);
+    cudaFree(dev_idata);
+    cudaFree(dev_odata);
+    cudaFree(dev_block_sums);
     cudaFree(dev_indices);
 }
 
-void StreamCompaction::Radix::sortByKey(int n, int* dev_keysA, int* dev_keysB, int* dev_valuesA,
-                                        int* dev_valuesB, int* dev_blockSums, int* dev_indices,
-                                        const int maxBitLength, const int blockSize)
+void sort_by_key(int n, int max_bit_length, int block_size, int* dev_block_sums, int* dev_indices,
+                 int* dev_ikeys, int* dev_okeys, int* dev_ivalues, int* dev_ovalues)
 {
-    for (int tgtBit = 0; tgtBit < maxBitLength; tgtBit++)
+    for (int target_bit = 0; target_bit < max_bit_length; target_bit++)
     {
-        unsigned blocks = divup(n, blockSize);
+        int blocks = divup(n, block_size);
 
         // Split data into 0s and 1s based on the target bit
-        _split<<<blocks, blockSize>>>(n, dev_keysA, dev_keysB, tgtBit);
+        kernel_split<<<blocks, block_size>>>(n, target_bit, dev_ikeys, dev_okeys);
 
         // Perform scan on the split results
-        Shared::scan(n, dev_keysB, dev_keysB, dev_blockSums, blockSize);
+        shared::scan(n, block_size, dev_block_sums, dev_okeys, dev_okeys);
 
         // Scatter data based on the split results
-        _computeScatterIndices<<<blocks, blockSize>>>(n, dev_indices, dev_keysA, dev_keysB, tgtBit);
+        kernel_compute_scatter_indices<<<blocks, block_size>>>(n, target_bit, dev_okeys, dev_ikeys,
+                                                               dev_indices);
 
-        _scatter<<<blocks, blockSize>>>(n, dev_keysB, dev_keysA, dev_indices);
-        _scatter<<<blocks, blockSize>>>(n, dev_valuesB, dev_valuesA, dev_indices);
+        kernel_scatter<<<blocks, block_size>>>(n, dev_indices, dev_ikeys, dev_okeys);
+        kernel_scatter<<<blocks, block_size>>>(n, dev_indices, dev_ivalues, dev_ovalues);
 
         // Swap buffers (ping-pong)
-        int* temp = dev_keysA;
-        dev_keysA = dev_keysB;
-        dev_keysB = temp;
+        int* temp = dev_ikeys;
+        dev_ikeys = dev_okeys;
+        dev_okeys = temp;
 
-        temp = dev_valuesA;
-        dev_valuesA = dev_valuesB;
-        dev_valuesB = temp;
+        temp = dev_ivalues;
+        dev_ivalues = dev_ovalues;
+        dev_ovalues = temp;
     }
 }
 
-void StreamCompaction::Radix::sortByKeyWrapper(int n, int* okeys, const int* ikeys, int* ovalues,
-                                               const int* ivalues, const int maxBitLength,
-                                               const int blockSize)
+void sort_by_key_wrapper(int n, int max_bit_length, int block_size, const int* ikeys,
+                         const int* ivalues, int* okeys, int* ovalues)
 {
-    const unsigned numLayers = ilog2ceil(n);
-    const unsigned long long paddedN = 1 << ilog2ceil(n);
-    const unsigned blockSums = divup(paddedN, 2 * blockSize);
+    const int padded_n = 1 << ilog2_ceil(n);
+    const int block_sums = divup(padded_n, 2 * block_size);
 
     // Allocate device memory for input/output data and scan
-    int* dev_keysA;
-    int* dev_keysB;
-    int* dev_valuesA;
-    int* dev_valuesB;
-    int* dev_blockSums;
+    int* dev_ikeys;
+    int* dev_okeys;
+    int* dev_ivalues;
+    int* dev_ovalues;
+
+    int* dev_block_sums;
     int* dev_indices;
 
-    cudaMalloc((void**)&dev_keysA, sizeof(int) * paddedN);
+    cudaMalloc(reinterpret_cast<void**>(&dev_ikeys), sizeof(int) * padded_n);
     CUDA_CHECK("CUDA malloc for device ikeys array failed.");
 
-    cudaMalloc((void**)&dev_keysB, sizeof(int) * paddedN);
+    cudaMalloc(reinterpret_cast<void**>(&dev_okeys), sizeof(int) * padded_n);
     CUDA_CHECK("CUDA malloc for device okeys array failed.");
 
-    cudaMalloc((void**)&dev_valuesA, sizeof(int) * paddedN);
+    cudaMalloc(reinterpret_cast<void**>(&dev_ivalues), sizeof(int) * padded_n);
     CUDA_CHECK("CUDA malloc for device ivalues array failed.");
 
-    cudaMalloc((void**)&dev_valuesB, sizeof(int) * paddedN);
+    cudaMalloc(reinterpret_cast<void**>(&dev_ovalues), sizeof(int) * padded_n);
     CUDA_CHECK("CUDA malloc for device ovalues array failed.");
 
-    cudaMalloc((void**)&dev_blockSums, sizeof(int) * blockSums);
+    cudaMalloc(reinterpret_cast<void**>(&dev_block_sums), sizeof(int) * block_sums);
     CUDA_CHECK("CUDA malloc for device block sums array failed.");
 
-    cudaMalloc((void**)&dev_indices, sizeof(int) * n);
+    cudaMalloc(reinterpret_cast<void**>(&dev_indices), sizeof(int) * n);
     CUDA_CHECK("CUDA malloc for device indices array failed.");
 
     // Copy input data to device
-    cudaMemcpy(dev_keysA, ikeys, sizeof(int) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_ikeys, ikeys, sizeof(int) * n, cudaMemcpyHostToDevice);
     CUDA_CHECK("Memory copy from host ikeys to device array failed.");
 
-    cudaMemcpy(dev_valuesA, ivalues, sizeof(int) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_ivalues, ivalues, sizeof(int) * n, cudaMemcpyHostToDevice);
     CUDA_CHECK("Memory copy from host values to device array failed.");
 
-    bool usingTimer = false;
+    bool using_timer = false;
     if (!timer().gpu_timer_started)
     {
-        timer().startGpuTimer();
-        usingTimer = true;
+        timer().start_timer<eTimerDevice::GPU>();
+        using_timer = true;
     }
 
-    StreamCompaction::Radix::sortByKey(n, dev_keysA, dev_keysB, dev_valuesA, dev_valuesB,
-                                       dev_blockSums, dev_indices, maxBitLength, blockSize);
+    sort_by_key(n, max_bit_length, block_size, dev_block_sums, dev_indices, dev_ikeys, dev_okeys,
+                dev_ivalues, dev_ovalues);
 
-    if (usingTimer)
+    if (using_timer)
     {
-        timer().endGpuTimer();
+        timer().end_timer<eTimerDevice::GPU>();
     }
 
     // Copy sorted data back to host
-    cudaMemcpy(okeys, dev_keysA, sizeof(int) * n, cudaMemcpyDeviceToHost);
+    cudaMemcpy(okeys, dev_ikeys, sizeof(int) * n, cudaMemcpyDeviceToHost);
     CUDA_CHECK("Memory copy from device array to host data failed.");
 
-    cudaMemcpy(ovalues, dev_valuesA, sizeof(int) * n, cudaMemcpyDeviceToHost);
+    cudaMemcpy(ovalues, dev_ivalues, sizeof(int) * n, cudaMemcpyDeviceToHost);
     CUDA_CHECK("Memory copy from device array to host data failed.");
 
     // Free device memory
-    cudaFree(dev_keysA);
-    cudaFree(dev_keysB);
-    cudaFree(dev_valuesA);
-    cudaFree(dev_valuesB);
-    cudaFree(dev_blockSums);
+    cudaFree(dev_ikeys);
+    cudaFree(dev_okeys);
+    cudaFree(dev_ivalues);
+    cudaFree(dev_ovalues);
+    cudaFree(dev_block_sums);
     cudaFree(dev_indices);
 }
+}  // namespace stream_compaction::radix

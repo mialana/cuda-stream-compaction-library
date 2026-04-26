@@ -2,31 +2,31 @@
 
 #include "common.h"
 
-namespace StreamCompaction
+namespace stream_compaction
 {
-namespace Radix
+namespace radix
 {
-StreamCompaction::Common::PerformanceTimer& timer();
+stream_compaction::common::PerformanceTimer& timer();
 
-__device__ __host__ int _isolateBit(const int num, const int tgtBit);
+__device__ __host__ int kernel_isolate_bit(int n, int target_bit);
 
-__global__ void _split(int n, int* data, int* notLSB, const int bit);
+__global__ void kernel_split(int n, int target_bit, const int* idata, int* out_not_lsb);
 
-__global__ void _computeScatterIndices(int n, int* odata, const int* idata, const int* scan,
-                                       const int tgtBit);
+__global__ void kernel_compute_scatter_indices(int n, int target_bit, const int* scan,
+                                               const int* idata, int* out_indices);
 
-__global__ void _scatter(int n, int* odata, const int* idata, const int* addresses);
+__global__ void kernel_scatter(int n, const int* addresses, const int* idata, int* odata);
 
-void sort(int n, int* dev_dataA, int* dev_dataB, int* dev_blockSums, int* dev_indices,
-          const int maxBitLength, const int blockSize);
+void sort(int n, int max_bit_length, int block_size, int* dev_block_sums, int* dev_indices,
+          int* dev_idata, int* dev_odata);
 
-void sortWrapper(int n, int* odata, const int* idata, const int maxBitLength, const int blockSize);
+void sort_wrapper(int n, int max_bit_length, int block_size, const int* idata, int* odata);
 
-void sortByKey(int n, int* dev_dataA, int* dev_dataB, int* dev_valuesA, int* dev_valuesB,
-               int* dev_blockSums, int* dev_indices, const int maxBitLength, const int blockSize);
+void sort_by_key(int n, int max_bit_length, int block_size, int* dev_block_sums, int* dev_indices,
+                 int* dev_ikeys, int* dev_okeys, int* dev_ivalues, int* dev_ovalues);
 
-void sortByKeyWrapper(int n, int* odata, const int* idata, int* ovalues, const int* ivalues,
-                      const int maxBitLength, const int blockSize);
+void sort_by_key_wrapper(int n, int max_bit_length, int block_size, const int* ikeys,
+                         const int* ivalues, int* okeys, int* ovalues);
 
-}  // namespace Radix
-}  // namespace StreamCompaction
+}  // namespace radix
+}  // namespace stream_compaction
