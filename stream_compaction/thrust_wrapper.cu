@@ -13,7 +13,7 @@
 
 namespace stream_compaction::thrust_wrapper
 {
-using common::eTimerDevice;
+using enum common::eTimerDevice;
 using common::PerformanceTimer;
 
 using thrust::host_vector;
@@ -34,11 +34,11 @@ void scan(int n, const int* idata, int* odata)
     thrust::device_vector<int> dev_idata = host_idata;  // built-in assignment conversion
     thrust::device_vector<int> dev_odata(n);  // for output
 
-    get_timer().start_timer<eTimerDevice::GPU>();
+    get_timer().start_timer<GPU>();
 
     thrust::exclusive_scan(dev_idata.begin(), dev_idata.end(), dev_odata.begin());
 
-    get_timer().end_timer<eTimerDevice::GPU>();
+    get_timer().end_timer<GPU>();
 
     // copy result back to host
     thrust::copy(dev_odata.begin(), dev_odata.end(), odata);
@@ -51,7 +51,7 @@ void radix_sort(int n, const int* idata, int* odata)
     bool using_timer = false;
     if (!get_timer().gpu_timer_started)
     {
-        get_timer().start_timer<eTimerDevice::GPU>();
+        get_timer().start_timer<GPU>();
         using_timer = true;
     }
 
@@ -59,7 +59,7 @@ void radix_sort(int n, const int* idata, int* odata)
 
     if (using_timer)
     {
-        get_timer().end_timer<eTimerDevice::GPU>();
+        get_timer().end_timer<GPU>();
     }
 
     thrust::copy(dev_copy.begin(), dev_copy.end(), odata);
@@ -74,7 +74,7 @@ void radix_sort_by_key(int n, const int* ikeys, const int* ivalues, int* okeys, 
     bool using_timer = false;
     if (!get_timer().gpu_timer_started)
     {
-        get_timer().start_timer<eTimerDevice::GPU>();
+        get_timer().start_timer<GPU>();
         using_timer = true;
     }
 
@@ -83,7 +83,7 @@ void radix_sort_by_key(int n, const int* ikeys, const int* ivalues, int* okeys, 
 
     if (using_timer)
     {
-        get_timer().end_timer<eTimerDevice::GPU>();
+        get_timer().end_timer<GPU>();
     }
 
     // Copy sorted keys and values back to host

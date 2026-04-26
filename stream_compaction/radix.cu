@@ -9,7 +9,7 @@
 namespace stream_compaction::radix
 {
 
-using common::eTimerDevice;
+using enum common::eTimerDevice;
 using common::PerformanceTimer;
 
 PerformanceTimer& get_timer()
@@ -129,7 +129,7 @@ void sort_wrapper(int n, int max_bit_length, int block_size, const int* idata, i
     bool using_timer = false;
     if (!get_timer().gpu_timer_started)
     {
-        get_timer().start_timer<eTimerDevice::GPU>();
+        get_timer().start_timer<GPU>();
         using_timer = true;
     }
 
@@ -137,7 +137,7 @@ void sort_wrapper(int n, int max_bit_length, int block_size, const int* idata, i
 
     if (using_timer)
     {
-        get_timer().end_timer<eTimerDevice::GPU>();
+        get_timer().end_timer<GPU>();
     }
 
     // Copy sorted data back to host
@@ -225,7 +225,7 @@ void sort_by_key_wrapper(int n, int max_bit_length, int block_size, const int* i
     bool using_timer = false;
     if (!get_timer().gpu_timer_started)
     {
-        get_timer().start_timer<eTimerDevice::GPU>();
+        get_timer().start_timer<GPU>();
         using_timer = true;
     }
 
@@ -234,7 +234,7 @@ void sort_by_key_wrapper(int n, int max_bit_length, int block_size, const int* i
 
     if (using_timer)
     {
-        get_timer().end_timer<eTimerDevice::GPU>();
+        get_timer().end_timer<GPU>();
     }
 
     // Copy sorted data back to host

@@ -5,7 +5,7 @@
 
 namespace stream_compaction::naive
 {
-using common::eTimerDevice;
+using enum common::eTimerDevice;
 using common::PerformanceTimer;
 
 PerformanceTimer& get_timer()
@@ -57,7 +57,7 @@ void scan(int n, const int* idata, int* odata)
 
     cudaDeviceSynchronize();
 
-    get_timer().start_timer<eTimerDevice::GPU>();
+    get_timer().start_timer<GPU>();
 
     int blocks = divup(n, BLOCK_SIZE);
 
@@ -76,7 +76,7 @@ void scan(int n, const int* idata, int* odata)
     common::kernel_inclusive_to_exclusive<<<blocks, BLOCK_SIZE>>>(n, 0, dev_idata, dev_odata);
     CUDA_CHECK("Inclusive to Exclusive CUDA kernel failed.");
 
-    get_timer().end_timer<eTimerDevice::GPU>();
+    get_timer().end_timer<GPU>();
 
     cudaMemcpy(odata, dev_odata, sizeof(int) * n,
                cudaMemcpyDeviceToHost);  // result ends up in scanB

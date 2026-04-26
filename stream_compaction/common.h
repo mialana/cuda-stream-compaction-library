@@ -2,7 +2,6 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include <device_launch_parameters.h>
 
 #include <chrono>
 #include <stdexcept>
@@ -84,10 +83,10 @@ public:
         cudaEventDestroy(_event_end);
     }
 
-    template<eTimerDevice D>
+    template<eTimerDevice Device>
     void start_timer()
     {
-        if constexpr (D == eTimerDevice::CPU)
+        if constexpr (Device == eTimerDevice::CPU)
         {
             if (cpu_timer_started) throw std::runtime_error("CPU timer already started");
             cpu_timer_started = true;
@@ -103,10 +102,10 @@ public:
         }
     }
 
-    template<eTimerDevice D>
+    template<eTimerDevice Device>
     void end_timer()
     {
-        if constexpr (D == eTimerDevice::CPU)
+        if constexpr (Device == eTimerDevice::CPU)
         {
             _time_end_cpu = std::chrono::high_resolution_clock::now();
 
@@ -130,12 +129,12 @@ public:
         }
     }
 
-    template<eTimerDevice D>
-    inline void print_elapsed_time_for_previous_operation() const
+    template<eTimerDevice Device>
+    inline void flush() const
     {
         float elapsed_time;
         const char* timer_device_string;
-        if constexpr (D == eTimerDevice::CPU)
+        if constexpr (Device == eTimerDevice::CPU)
         {
             elapsed_time = _prev_elapsed_time_cpu_milliseconds;
             timer_device_string = "CPU";
@@ -148,54 +147,17 @@ public:
         printf("\tELAPSED TIME: %fms (%s)\n", elapsed_time, timer_device_string);
     }
 
-    void start_cpu_timer()
+    template<eTimerDevice Device>
+    [[nodiscard]] float get_elapsed_time_for_previous_operation() const
     {
-        if (cpu_timer_started) throw std::runtime_error("CPU timer already started");
-        cpu_timer_started = true;
-
-        _time_start_cpu = std::chrono::high_resolution_clock::now();
-    }
-
-    void end_cpu_timer()
-    {
-        _time_end_cpu = std::chrono::high_resolution_clock::now();
-
-        if (!cpu_timer_started) throw std::runtime_error("CPU timer not started");
-
-        std::chrono::duration<double, std::milli> duro = _time_end_cpu - _time_start_cpu;
-        _prev_elapsed_time_cpu_milliseconds
-            = static_cast<decltype(_prev_elapsed_time_cpu_milliseconds)>(duro.count());
-
-        cpu_timer_started = false;
-    }
-
-    void start_gpu_timer()
-    {
-        if (gpu_timer_started) throw std::runtime_error("GPU timer already started");
-        gpu_timer_started = true;
-
-        cudaEventRecord(_event_start);
-    }
-
-    void end_gpu_timer()
-    {
-        cudaEventRecord(_event_end);
-        cudaEventSynchronize(_event_end);
-
-        if (!gpu_timer_started) throw std::runtime_error("GPU timer not started");
-
-        cudaEventElapsedTime(&_prev_elapsed_time_gpu_milliseconds, _event_start, _event_end);
-        gpu_timer_started = false;
-    }
-
-    [[nodiscard]] float get_cpu_elapsed_time_for_previous_operation() const
-    {
-        return _prev_elapsed_time_cpu_milliseconds;
-    }
-
-    [[nodiscard]] float get_gpu_elapsed_time_for_previous_operation() const
-    {
-        return _prev_elapsed_time_gpu_milliseconds;
+        if constexpr (Device == eTimerDevice::CPU)
+        {
+            return _prev_elapsed_time_cpu_milliseconds;
+        }
+        else
+        {
+            return _prev_elapsed_time_gpu_milliseconds;
+        }
     }
 
     // remove copy and move functions

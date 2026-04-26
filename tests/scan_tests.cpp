@@ -1,17 +1,51 @@
-#include "gtest/gtest.h"
+#include <gtest/gtest.h>
+
 #include "test_utils.h"
 
-#include <array>
+#include <stream_compaction/cpu.h>
+#include <stream_compaction/naive.h>
 
-class ScanTest : public testing::Test
+using namespace stream_compaction;
+using enum common::eTimerDevice;
+
+class ScanTest : public testing::TestWithParam<int>
 {
 protected:
-    ScanTest()
+    void SetUp() override
     {
-        fill_array_random(a, 64);
-        fill_array_random(b, 64);
+        int n = GetParam();
+        _source.resize(n, -1);
+        _expected.resize(n, -1);
+        _actual.resize(n, -1);
+        fill_container_random(_source, n);
     }
 
-    std::array<int, kSIZE> a{};
-    std::array<int, kSIZE> b{};
+    std::vector<int> _source{};
+    std::vector<int> _expected{};
+    std::vector<int> _actual{};
 };
+
+constexpr int kMAX_POT = 28;
+constexpr std::array<int, kMAX_POT> kPOT_VALUES = []
+{
+    std::array<int, kMAX_POT> arr{};
+    for (int i = 0; i < kMAX_POT; ++i)
+        arr[i] = 1 << i;
+    return arr;
+}();
+
+INSTANTIATE_TEST_SUITE_P(PowersOfTwo, ScanTest, testing::ValuesIn(kPOT_VALUES),
+                         testing::PrintToStringParamName());
+
+TEST_P(ScanTest, naiveScanPowerOfTwo)
+{
+    cpu::scan(GetParam(), _source.data(), _expected.data());
+    cpu::get_timer().flush<CPU>();
+    naive::scan(GetParam(), _source.data(), _actual.data());
+    naive::get_timer().flush<GPU>();
+
+    for (int i = 0; i < GetParam(); ++i)
+    {
+        ASSERT_EQ(_expected[i], _actual[i]) << "(Index " << i << ")";
+    }
+}

@@ -4,7 +4,7 @@
 
 namespace stream_compaction::cpu
 {
-using common::eTimerDevice;
+using enum common::eTimerDevice;
 using common::PerformanceTimer;
 
 PerformanceTimer& get_timer()
@@ -21,26 +21,16 @@ PerformanceTimer& get_timer()
  */
 void scan(int n, const int* idata, int* odata)
 {
-    bool using_timer = false;
-    if (!get_timer().cpu_timer_started)  // added in order to call `scan` from other functions.
-    {
-        get_timer().start_timer<eTimerDevice::CPU>();
-        using_timer = true;
-    }
+    get_timer().start_timer<CPU>();
 
-    odata[0] = 0;  // identity is 0
-
-    int prev_sum = idata[0];  // save prev sum for access ease
-    for (int j = 1; j < n; j++)
+    int prev_sum = 0;  // save prev sum for access ease
+    for (int j = 0; j < n; j++)
     {
         odata[j] = prev_sum;
         prev_sum += idata[j];
     }
 
-    if (using_timer)
-    {
-        get_timer().end_timer<eTimerDevice::CPU>();
-    }
+    get_timer().end_timer<CPU>();
 }
 
 /**
@@ -50,7 +40,7 @@ void scan(int n, const int* idata, int* odata)
  */
 int compact_without_scan(int n, const int* idata, int* odata)
 {
-    get_timer().start_timer<eTimerDevice::CPU>();
+    get_timer().start_timer<CPU>();
 
     int out_index = 0;  // pointer to current progress in out array
 
@@ -64,7 +54,7 @@ int compact_without_scan(int n, const int* idata, int* odata)
         }
     }
 
-    get_timer().end_timer<eTimerDevice::CPU>();
+    get_timer().end_timer<CPU>();
     return out_index;
 }
 
@@ -75,7 +65,7 @@ int compact_without_scan(int n, const int* idata, int* odata)
  */
 int compact_with_scan(int n, const int* idata, int* odata)
 {
-    get_timer().start_timer<eTimerDevice::CPU>();
+    get_timer().start_timer<CPU>();
 
     int* is_not_zero = new int[n];
     int* scan_is_not_zero = new int[n];
@@ -95,7 +85,7 @@ int compact_with_scan(int n, const int* idata, int* odata)
         }
     }
 
-    get_timer().end_timer<eTimerDevice::CPU>();
+    get_timer().end_timer<CPU>();
 
     return scan_is_not_zero[n - 1] + is_not_zero[n - 1];  // due to exclusive scan
 }

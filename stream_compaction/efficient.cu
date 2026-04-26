@@ -6,7 +6,7 @@
 namespace stream_compaction::efficient
 {
 
-using common::eTimerDevice;
+using enum common::eTimerDevice;
 using common::PerformanceTimer;
 
 PerformanceTimer& efficient::get_timer()
@@ -139,7 +139,7 @@ void scan_wrapper(int n, const int* idata, int* odata)
     bool using_timer = false;
     if (!get_timer().gpu_timer_started)  // added in order to call `scan` from other functions.
     {
-        get_timer().start_timer<eTimerDevice::GPU>();
+        get_timer().start_timer<GPU>();
         using_timer = true;
     }
 
@@ -147,7 +147,7 @@ void scan_wrapper(int n, const int* idata, int* odata)
 
     if (using_timer)
     {
-        get_timer().end_timer<eTimerDevice::GPU>();
+        get_timer().end_timer<GPU>();
     }
 
     cudaMemcpy(odata, dev_scan, sizeof(int) * n, cudaMemcpyDeviceToHost);
@@ -197,7 +197,7 @@ int compact(int n, int* odata, const int* idata)
     int* indices = new int[n];  // create cpu side indices array
     int* bools = new int[n];
 
-    stream_compaction::efficient::get_timer().start_timer<eTimerDevice::GPU>();
+    stream_compaction::efficient::get_timer().start_timer<GPU>();
 
     int blocks = divup(n, BLOCK_SIZE);
 
@@ -214,7 +214,7 @@ int compact(int n, int* odata, const int* idata)
 
     common::kernel_scatter<<<blocks, BLOCK_SIZE>>>(n, dev_bools, dev_indices, dev_idata, dev_odata);
 
-    stream_compaction::efficient::get_timer().end_timer<eTimerDevice::GPU>();
+    stream_compaction::efficient::get_timer().end_timer<GPU>();
 
     cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);
 

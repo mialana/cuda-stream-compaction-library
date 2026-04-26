@@ -59,7 +59,7 @@ if(STREAM_COMPACTION_BUILD_TESTS)
     target_link_libraries(${STREAM_COMPACTION_TESTS_TARGET} PRIVATE stream_compaction::stream_compaction GTest::gtest_main)
 
     include(GoogleTest)
-    # gtest_discover_tests(${STREAM_COMPACTION_TESTS_TARGET}) # auto-discover tests for CTest
+    gtest_discover_tests(${STREAM_COMPACTION_TESTS_TARGET}) # auto-discover tests for CTest
 
     if(CMAKE_GENERATOR MATCHES "Visual Studio")
         # make tests target the startup project in VS

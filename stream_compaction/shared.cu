@@ -6,7 +6,7 @@
 namespace stream_compaction::shared
 {
 
-using common::eTimerDevice;
+using enum common::eTimerDevice;
 using common::PerformanceTimer;
 
 PerformanceTimer& shared::get_timer()
@@ -193,7 +193,7 @@ void scan_wrapper(int n, int* odata, const int* idata)
     bool using_timer = false;
     if (!get_timer().gpu_timer_started)  // added in order to call `scan` from other functions.
     {
-        get_timer().start_timer<eTimerDevice::GPU>();
+        get_timer().start_timer<GPU>();
         using_timer = true;
     }
 
@@ -201,7 +201,7 @@ void scan_wrapper(int n, int* odata, const int* idata)
 
     if (using_timer)
     {
-        get_timer().end_timer<eTimerDevice::GPU>();
+        get_timer().end_timer<GPU>();
     }
 
     cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);  // only copy n elements
@@ -270,7 +270,7 @@ int compact_wrapper(int n, const int* idata, int* odata)
     bool using_timer = false;
     if (!get_timer().gpu_timer_started)
     {
-        get_timer().start_timer<eTimerDevice::GPU>();
+        get_timer().start_timer<GPU>();
         using_timer = true;
     }
 
@@ -279,7 +279,7 @@ int compact_wrapper(int n, const int* idata, int* odata)
 
     if (using_timer)
     {
-        get_timer().end_timer<eTimerDevice::GPU>();
+        get_timer().end_timer<GPU>();
     }
 
     // Copy the compacted result back to host; note that compactCount elements are valid
