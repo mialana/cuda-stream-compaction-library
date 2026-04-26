@@ -27,7 +27,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 )
 
 find_package(CCCL REQUIRED CONFIG)
-target_link_libraries(${PROJECT_NAME} PRIVATE CCCL::CCCL PUBLIC CUDA::cudart)
+target_link_libraries(${PROJECT_NAME} PUBLIC CCCL::CCCL CUDA::cudart)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES CUDA_ARCHITECTURES "native")
 

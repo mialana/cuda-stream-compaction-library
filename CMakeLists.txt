@@ -34,10 +34,10 @@ if(STREAM_COMPACTION_BUILD_TESTS)
         "${STREAM_COMPACTION_TESTS_ROOT}/test_utils.h"
     )
     set(TESTS_SOURCES
-        "${STREAM_COMPACTION_TESTS_ROOT}/main.cu"
-        "${STREAM_COMPACTION_TESTS_ROOT}/scan_tests.cu"
-        "${STREAM_COMPACTION_TESTS_ROOT}/radix_sort_tests.cu"
-        "${STREAM_COMPACTION_TESTS_ROOT}/stream_compaction_tests.cu"
+        "${STREAM_COMPACTION_TESTS_ROOT}/main.cpp"
+        "${STREAM_COMPACTION_TESTS_ROOT}/scan_tests.cpp"
+        "${STREAM_COMPACTION_TESTS_ROOT}/radix_sort_tests.cpp"
+        "${STREAM_COMPACTION_TESTS_ROOT}/stream_compaction_tests.cpp"
     )
 
     add_executable(${STREAM_COMPACTION_TESTS_TARGET} ${TESTS_SOURCES} ${TESTS_HEADERS})

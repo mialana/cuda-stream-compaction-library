@@ -2,6 +2,7 @@
 
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <device_launch_parameters.h>
 
 #include <chrono>
 #include <stdexcept>
@@ -46,21 +47,8 @@ __global__ void kernel_map_to_boolean(int n, const int* idata, int* out_bools);
  * Performs scatter on an array. That is, for each element in idata,
  * if bools[idx] == 1, it copies idata[idx] to odata[indices[idx]].
  */
-template<typename T>
-__global__ void kernel_scatter(int n, const int* bools, const int* indices, const T* idata, T* odata)
-{
-    unsigned index = blockIdx.x * blockDim.x + threadIdx.x;
-
-    if (index >= n)
-    {
-        return;
-    }
-
-    if (bools[index] == 1)
-    {
-        odata[indices[index]] = idata[index];
-    }
-}
+__global__ void kernel_scatter(int n, const int* bools, const int* indices, const int* idata,
+                               int* odata);
 
 __global__ void kernel_inclusive_to_exclusive(int n, int identity, const int* idata, int* odata);
 
