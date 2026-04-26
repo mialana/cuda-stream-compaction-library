@@ -190,7 +190,8 @@ void do_radix_sort_tests()
     print_desc("radix sort, power-of-two");
     stream_compaction::radix::sort_wrapper(kSIZE, 6, BLOCK_SIZE, a, c);
 
-    stream_compaction::radix::timer().print_elapsed_time_for_previous_operation<eTimerDevice::GPU>();
+    stream_compaction::radix::get_timer()
+        .print_elapsed_time_for_previous_operation<eTimerDevice::GPU>();
     print_array(kSIZE, c);
 
     print_cmp_result(kSIZE, b, c);
@@ -210,7 +211,8 @@ void do_radix_sort_tests()
     print_desc("custom radix sort by key, power-of-two");
     stream_compaction::radix::sort_by_key_wrapper(kSIZE, 6, BLOCK_SIZE, a, values, d, e);
 
-    stream_compaction::radix::timer().print_elapsed_time_for_previous_operation<eTimerDevice::GPU>();
+    stream_compaction::radix::get_timer()
+        .print_elapsed_time_for_previous_operation<eTimerDevice::GPU>();
     print_array(kSIZE, d);
     print_array(kSIZE, e);
 

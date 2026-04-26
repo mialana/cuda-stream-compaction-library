@@ -12,7 +12,7 @@ struct IsNonZero
     }
 };
 
-stream_compaction::common::PerformanceTimer& get_timer();
+common::PerformanceTimer& get_timer();
 
 void scan(int n, const int* idata, int* odata);
 

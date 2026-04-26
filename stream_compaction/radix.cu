@@ -6,13 +6,13 @@
 #include "common.h"
 #include "shared.h"
 
-using stream_compaction::common::eTimerDevice;
-using stream_compaction::common::PerformanceTimer;
-
 namespace stream_compaction::radix
 {
 
-PerformanceTimer& timer()
+using common::eTimerDevice;
+using common::PerformanceTimer;
+
+PerformanceTimer& get_timer()
 {
     static PerformanceTimer timer;
     return timer;
@@ -127,9 +127,9 @@ void sort_wrapper(int n, int max_bit_length, int block_size, const int* idata, i
     CUDA_CHECK("Memory copy from host data to device array failed.");
 
     bool using_timer = false;
-    if (!timer().gpu_timer_started)
+    if (!get_timer().gpu_timer_started)
     {
-        timer().start_timer<eTimerDevice::GPU>();
+        get_timer().start_timer<eTimerDevice::GPU>();
         using_timer = true;
     }
 
@@ -137,7 +137,7 @@ void sort_wrapper(int n, int max_bit_length, int block_size, const int* idata, i
 
     if (using_timer)
     {
-        timer().end_timer<eTimerDevice::GPU>();
+        get_timer().end_timer<eTimerDevice::GPU>();
     }
 
     // Copy sorted data back to host
@@ -223,9 +223,9 @@ void sort_by_key_wrapper(int n, int max_bit_length, int block_size, const int* i
     CUDA_CHECK("Memory copy from host values to device array failed.");
 
     bool using_timer = false;
-    if (!timer().gpu_timer_started)
+    if (!get_timer().gpu_timer_started)
     {
-        timer().start_timer<eTimerDevice::GPU>();
+        get_timer().start_timer<eTimerDevice::GPU>();
         using_timer = true;
     }
 
@@ -234,7 +234,7 @@ void sort_by_key_wrapper(int n, int max_bit_length, int block_size, const int* i
 
     if (using_timer)
     {
-        timer().end_timer<eTimerDevice::GPU>();
+        get_timer().end_timer<eTimerDevice::GPU>();
     }
 
     // Copy sorted data back to host

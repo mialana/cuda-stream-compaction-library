@@ -6,7 +6,7 @@ namespace stream_compaction
 {
 namespace radix
 {
-stream_compaction::common::PerformanceTimer& timer();
+common::PerformanceTimer& get_timer();
 
 __device__ __host__ int kernel_isolate_bit(int n, int target_bit);
 

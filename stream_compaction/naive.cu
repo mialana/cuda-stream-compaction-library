@@ -5,8 +5,8 @@
 
 namespace stream_compaction::naive
 {
-using stream_compaction::common::eTimerDevice;
-using stream_compaction::common::PerformanceTimer;
+using common::eTimerDevice;
+using common::PerformanceTimer;
 
 PerformanceTimer& get_timer()
 {
@@ -14,9 +14,8 @@ PerformanceTimer& get_timer()
     return timer;
 }
 
-// in_scan is input and out_scan is output for this iteration
-__global__ void kernel_perform_naive_scan_iteration(const int n, const int iter, const int* in_scan,
-                                                    int* out_scan)
+// idata is input and odata is output for this iteration
+__global__ void kernel_perform_naive_scan_iteration(int n, int iter, const int* idata, int* odata)
 {
     unsigned index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -28,11 +27,11 @@ __global__ void kernel_perform_naive_scan_iteration(const int n, const int iter,
 
     if (index < iter_start_idx)
     {
-        out_scan[index] = in_scan[index];
+        odata[index] = idata[index];
     }
     else
     {
-        out_scan[index] = in_scan[index - iter_start_idx] + in_scan[index];
+        odata[index] = idata[index - iter_start_idx] + idata[index];
     }
 }
 

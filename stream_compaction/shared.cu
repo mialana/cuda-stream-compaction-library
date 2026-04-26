@@ -3,10 +3,13 @@
 #include "common.h"
 #include "shared.h"
 
-using stream_compaction::common::eTimerDevice;
-using stream_compaction::common::PerformanceTimer;
+namespace stream_compaction::shared
+{
 
-PerformanceTimer& stream_compaction::shared::get_timer()
+using common::eTimerDevice;
+using common::PerformanceTimer;
+
+PerformanceTimer& shared::get_timer()
 {
     static PerformanceTimer timer;
     return timer;
@@ -17,8 +20,8 @@ __device__ __host__ unsigned kernel_offset(unsigned idx)
     return idx + CONFLICT_FREE_OFFSET(idx);
 }
 
-__global__ void kernel_scan_intra_block_shared(const unsigned long long padded_n, const int* idata,
-                                               int* out_block_sums, int* odata)
+__global__ void kernel_scan_intra_block_shared(int padded_n, const int* idata, int* out_block_sums,
+                                               int* odata)
 {
     extern __shared__ int mat[];
 
@@ -26,10 +29,10 @@ __global__ void kernel_scan_intra_block_shared(const unsigned long long padded_n
 
     const unsigned tid = threadIdx.x;
 
-    unsigned long long block_offset = (blockIdx.x * blockDim.x) * 2;
+    unsigned block_offset = (blockIdx.x * blockDim.x) * 2;
     unsigned thread_offset = 2 * tid;  // first index this thread is responsible for
 
-    unsigned long long global_thread_idx = block_offset + thread_offset;
+    unsigned global_thread_idx = block_offset + thread_offset;
 
     // global memory is read from in coalesced fashion
     // ensure some threads do not return early without zero-padding the shared matrix
@@ -125,8 +128,7 @@ __global__ void kernel_add_block_sums(int n, int* dev_data, const int* dev_block
     the inner operation of scan without timers and allocation.
     note: dev_scan should be pre-allocated to the padded power of two size
 */
-void stream_compaction::shared::scan(int n, int block_size, int* dev_block_sums,
-                                     const int* dev_idata, int* dev_odata)
+void scan(int n, int block_size, int* dev_block_sums, const int* dev_idata, int* dev_odata)
 {
     int padded_n = 1 << ilog2_ceil(n);  // pad to nearest power of 2
 
@@ -162,7 +164,7 @@ void stream_compaction::shared::scan(int n, int block_size, int* dev_block_sums,
 /**
  * Performs prefix-sum (aka scan) on idata, storing the result into odata.
  */
-void stream_compaction::shared::scan_wrapper(int n, int* odata, const int* idata)
+void scan_wrapper(int n, int* odata, const int* idata)
 {
     int padded_n = 1 << ilog2_ceil(n);
 
@@ -195,7 +197,7 @@ void stream_compaction::shared::scan_wrapper(int n, int* odata, const int* idata
         using_timer = true;
     }
 
-    stream_compaction::shared::scan(n, BLOCK_SIZE, dev_block_sums, dev_idata, dev_odata);
+    scan(n, BLOCK_SIZE, dev_block_sums, dev_idata, dev_odata);
 
     if (using_timer)
     {
@@ -211,14 +213,14 @@ void stream_compaction::shared::scan_wrapper(int n, int* odata, const int* idata
 
 /************************************************************************************************ */
 
-int stream_compaction::shared::compact(int n, int block_size, int* dev_bools, int* dev_block_sums,
-                                       int* dev_indices, const int* dev_idata, int* dev_odata)
+int compact(int n, int block_size, int* dev_bools, int* dev_block_sums, int* dev_indices,
+            const int* dev_idata, int* dev_odata)
 {
     int blocks = divup(n, block_size);
 
     common::kernel_map_to_boolean<<<blocks, block_size>>>(n, dev_idata, dev_bools);
 
-    stream_compaction::shared::scan(n, block_size, dev_block_sums, dev_bools, dev_indices);
+    scan(n, block_size, dev_block_sums, dev_bools, dev_indices);
 
     common::kernel_scatter<int>
         <<<blocks, block_size>>>(n, dev_bools, dev_indices, dev_idata, dev_odata);
@@ -236,7 +238,7 @@ int stream_compaction::shared::compact(int n, int block_size, int* dev_bools, in
  * Performs stream compaction on idata, storing the result into odata.
  * Returns the number of surviving elements (i.e. non-zero).
  */
-int stream_compaction::shared::compact_wrapper(int n, const int* idata, int* odata)
+int compact_wrapper(int n, const int* idata, int* odata)
 {
     int padded_n = 1 << ilog2_ceil(n);  // pad to nearest power of 2
     int total_blocks = divup(padded_n, 2 * BLOCK_SIZE);  // for scan block sums
@@ -296,3 +298,4 @@ int stream_compaction::shared::compact_wrapper(int n, const int* idata, int* oda
 
     return compact_count;
 }
+}  // namespace stream_compaction::shared

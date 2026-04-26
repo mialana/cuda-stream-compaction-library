@@ -36,9 +36,6 @@ __global__ void kernel_map_to_boolean(int n, const int* idata, int* out_bools)
     out_bools[index] = idata[index] == 0 ? 0 : 1;
 }
 
-template __global__ void kernel_scatter<int>(int n, const int* bools, const int* indices,
-                                             const int* idata, int* odata);
-
 __global__ void kernel_inclusive_to_exclusive(int n, int identity, const int* idata, int* odata)
 {
     unsigned index = blockIdx.x * blockDim.x + threadIdx.x;

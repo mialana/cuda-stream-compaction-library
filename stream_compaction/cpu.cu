@@ -4,8 +4,8 @@
 
 namespace stream_compaction::cpu
 {
-using stream_compaction::common::eTimerDevice;
-using stream_compaction::common::PerformanceTimer;
+using common::eTimerDevice;
+using common::PerformanceTimer;
 
 PerformanceTimer& get_timer()
 {

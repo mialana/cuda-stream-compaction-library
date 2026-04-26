@@ -13,8 +13,8 @@
 
 namespace stream_compaction::thrust_wrapper
 {
-using stream_compaction::common::eTimerDevice;
-using stream_compaction::common::PerformanceTimer;
+using common::eTimerDevice;
+using common::PerformanceTimer;
 
 using thrust::host_vector;
 

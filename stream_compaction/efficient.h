@@ -4,7 +4,14 @@
 
 namespace stream_compaction::efficient
 {
-stream_compaction::common::PerformanceTimer& get_timer();
+common::PerformanceTimer& get_timer();
+
+__global__ void kernel_efficient_up_sweep(unsigned int padded_n, int stride, int prev_stride,
+                                          int* scan);
+
+__global__ void kernel_efficient_down_sweep(int padded_n, int stride,
+                                            int next_stride,  // next_stride == (stride / 2)
+                                            int* scan);
 
 void scan(int n, int block_size, int* dev_scan);
 

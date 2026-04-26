@@ -3,25 +3,27 @@
 #include "common.h"
 #include "efficient.h"
 
-using stream_compaction::common::eTimerDevice;
-using stream_compaction::common::PerformanceTimer;
+namespace stream_compaction::efficient
+{
 
-PerformanceTimer& stream_compaction::efficient::get_timer()
+using common::eTimerDevice;
+using common::PerformanceTimer;
+
+PerformanceTimer& efficient::get_timer()
 {
     static PerformanceTimer timer;
     return timer;
 }
 
-__global__ void kernel_efficient_up_sweep(const unsigned long long padded_n, const int stride,
-                                          const int prev_stride, int* scan)
+__global__ void kernel_efficient_up_sweep(int padded_n, int stride, int prev_stride, int* scan)
 {
     unsigned stride_idx = blockIdx.x * blockDim.x + threadIdx.x;  // 0, 1, 2, 3... (like normal)
     // but this is not target elem index
 
-    unsigned long long stride_start = stride_idx * stride;  // index where this stride starts
+    unsigned stride_start = stride_idx * stride;  // index where this stride starts
 
     // last index in stride. accumulated value of stride always goes here
-    unsigned long long accumulator_idx = stride_start + stride - 1;
+    unsigned accumulator_idx = stride_start + stride - 1;
 
     if (accumulator_idx >= padded_n)
     {
@@ -32,21 +34,20 @@ __global__ void kernel_efficient_up_sweep(const unsigned long long padded_n, con
 
     // this new stride has swallowed two strides total
     // siblingIdx is the index of the other stride that now no longer exists
-    unsigned long long sibling_idx = stride_start + prev_stride
-                                     - 1;  // doesn't depend on accumulator
+    unsigned sibling_idx = stride_start + prev_stride - 1;  // doesn't depend on accumulator
 
     scan[accumulator_idx] = accumulator + scan[sibling_idx];
 }
 
-__global__ void kernel_efficient_down_sweep(const unsigned long long padded_n, const int stride,
-                                            const int next_stride,  // nextStride == (stride / 2)
+__global__ void kernel_efficient_down_sweep(int padded_n, int stride,
+                                            int next_stride,  // nextStride == (stride / 2)
                                             int* scan)
 {
     unsigned stride_idx = blockIdx.x * blockDim.x + threadIdx.x;
 
-    unsigned long long stride_start = stride_idx * stride;
+    unsigned stride_start = stride_idx * stride;
 
-    unsigned long long right_child_idx = stride_start + stride - 1;
+    unsigned right_child_idx = stride_start + stride - 1;
     if (right_child_idx >= padded_n)
     {
         return;
@@ -55,7 +56,7 @@ __global__ void kernel_efficient_down_sweep(const unsigned long long padded_n, c
     int right_child = scan[right_child_idx];
 
     // leftChild and rightChild are nextSTRIDE indices apart
-    unsigned long long left_child_idx = stride_start + next_stride - 1;
+    unsigned left_child_idx = stride_start + next_stride - 1;
     int left_child = scan[left_child_idx];  // does not depend on first memory read
 
     // give left child right child's value
@@ -75,8 +76,6 @@ __global__ void kernel_efficient_down_sweep(const unsigned long long padded_n, c
     // so when next_stride == 1, then this element is done, and so are our iterations
 }
 
-namespace stream_compaction::efficient
-{
 /*
     the inner operation of scan without timers and allocation.
     note: dev_scan should be pre-allocated to the padded power of two size
