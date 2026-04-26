@@ -11,7 +11,7 @@ namespace StreamCompaction
 namespace Shared
 {
 
-StreamCompaction::Common::PerformanceTimer& timer();
+StreamCompaction::Common::PerformanceTimer& get_timer();
 
 void scan(int n, const int* dev_idata, int* dev_odata, int* dev_blockSums, const int blockSize);
 

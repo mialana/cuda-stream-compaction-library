@@ -9,7 +9,7 @@ namespace Naive
 {
 using StreamCompaction::Common::PerformanceTimer;
 
-PerformanceTimer& timer()
+PerformanceTimer& get_timer()
 {
     static PerformanceTimer timer;
     return timer;
@@ -31,8 +31,7 @@ __global__ void kernel_performNaiveScanIteration(const int n, const int iter, co
     {
         scanB[index] = scanA[index];
     }
-    else
-    {
+    else {
         scanB[index] = scanA[index - iter_startIdx] + scanA[index];
     }
 
@@ -51,26 +50,26 @@ void scan(int n, int* odata, const int* idata)
     int* dev_scanB;
 
     cudaMalloc((void**)&dev_scanA, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for scan array A failed.");
+    CUDA_CHECK("CUDA malloc for scan array A failed.");
 
     cudaMalloc((void**)&dev_scanB, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for scan array B failed.");
+    CUDA_CHECK("CUDA malloc for scan array B failed.");
 
     cudaMemcpy(dev_scanA, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from input data to scan array A failed.");
+    CUDA_CHECK("Memory copy from input data to scan array A failed.");
     cudaMemcpy(dev_scanB, odata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from output data to scan array B failed.");
+    CUDA_CHECK("Memory copy from output data to scan array B failed.");
 
     cudaDeviceSynchronize();
 
-    timer().startGpuTimer();
+    get_timer().startGpuTimer();
 
     int blocks = divup(n, BLOCK_SIZE);
 
     for (int i = 1; i <= ilog2ceil(n); i++)
     {
         kernel_performNaiveScanIteration<<<blocks, BLOCK_SIZE>>>(n, i, dev_scanA, dev_scanB);
-        checkCUDAError("Perform Naive Scan Iteration CUDA kernel failed.");
+        CUDA_CHECK("Perform Naive Scan Iteration CUDA kernel failed.");
 
         // ping-pong
         int* temp = dev_scanA;
@@ -80,9 +79,9 @@ void scan(int n, int* odata, const int* idata)
 
     // result ends up in dev_scanA
     Common::kernel_inclusiveToExclusive<<<blocks, BLOCK_SIZE>>>(n, 0, dev_scanA, dev_scanB);
-    checkCUDAError("Inclusive to Exclusive CUDA kernel failed.");
+    CUDA_CHECK("Inclusive to Exclusive CUDA kernel failed.");
 
-    timer().endGpuTimer();
+    get_timer().endGpuTimer();
 
     cudaMemcpy(odata, dev_scanB, sizeof(int) * n,
                cudaMemcpyDeviceToHost);  // result ends up in scanB

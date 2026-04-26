@@ -5,7 +5,7 @@
 
 using StreamCompaction::Common::PerformanceTimer;
 
-PerformanceTimer& StreamCompaction::Shared::timer()
+PerformanceTimer& StreamCompaction::Shared::get_timer()
 {
     static PerformanceTimer timer;
     return timer;
@@ -135,14 +135,14 @@ void StreamCompaction::Shared::scan(int n, const int* dev_idata, int* dev_odata,
     // numBlocks, numThreads, shared mem size
     kernel_scanIntraBlockShared<<<numBlocks, blockSize, _offset(blockSpan) * sizeof(int)>>>(
         paddedN, dev_idata, dev_odata, dev_blockSums);
-    checkCUDAError("`kernel_scanIntraBlockShared` launch failed.");
+    CUDA_CHECK("`kernel_scanIntraBlockShared` launch failed.");
 
     if (numBlocks > 1)
     {
         // Allocate temporary buffer for recursive scan of block sums
         int* dev_newOData;
         cudaMalloc((void**)&dev_newOData, sizeof(int) * numBlocks);
-        checkCUDAError("CUDA malloc for recursive block sums failed.");
+        CUDA_CHECK("CUDA malloc for recursive block sums failed.");
 
         // Recursively scan the block sums
         scan(numBlocks, dev_blockSums, dev_newOData, dev_blockSums, blockSize);
@@ -171,24 +171,24 @@ void StreamCompaction::Shared::scanWrapper(int n, int* odata, const int* idata)
     int* dev_blockSums;
 
     cudaMalloc((void**)&dev_idata, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for scan array failed.");
+    CUDA_CHECK("CUDA malloc for scan array failed.");
 
     cudaMalloc((void**)&dev_odata, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for device out data failed.");
+    CUDA_CHECK("CUDA malloc for device out data failed.");
 
     // create new array to store total sum of each block
     cudaMalloc((void**)&dev_blockSums, sizeof(int) * totalBlocks);
-    checkCUDAError("CUDA malloc for block sums array failed.");
+    CUDA_CHECK("CUDA malloc for block sums array failed.");
 
     cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from input data to device idata array failed.");
+    CUDA_CHECK("Memory copy from input data to device idata array failed.");
 
     cudaDeviceSynchronize();
 
     bool usingTimer = false;
-    if (!timer().gpu_timer_started)  // added in order to call `scan` from other functions.
+    if (!get_timer().gpu_timer_started)  // added in order to call `scan` from other functions.
     {
-        timer().startGpuTimer();
+        get_timer().startGpuTimer();
         usingTimer = true;
     }
 
@@ -196,7 +196,7 @@ void StreamCompaction::Shared::scanWrapper(int n, int* odata, const int* idata)
 
     if (usingTimer)
     {
-        timer().endGpuTimer();
+        get_timer().endGpuTimer();
     }
 
     cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);  // only copy n elements
@@ -246,29 +246,29 @@ int StreamCompaction::Shared::compactWrapper(int n, int* odata, const int* idata
     int* dev_blockSums;
 
     cudaMalloc((void**)&dev_idata, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for dev_idata in compactWrapper failed.");
+    CUDA_CHECK("CUDA malloc for dev_idata in compactWrapper failed.");
 
     cudaMalloc((void**)&dev_odata, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for dev_odata in compactWrapper failed.");
+    CUDA_CHECK("CUDA malloc for dev_odata in compactWrapper failed.");
 
     cudaMalloc((void**)&dev_bools, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for dev_bools in compactWrapper failed.");
+    CUDA_CHECK("CUDA malloc for dev_bools in compactWrapper failed.");
 
     cudaMalloc((void**)&dev_indices, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for dev_indices in compactWrapper failed.");
+    CUDA_CHECK("CUDA malloc for dev_indices in compactWrapper failed.");
 
     cudaMalloc((void**)&dev_blockSums, sizeof(int) * totalBlocks);
-    checkCUDAError("CUDA malloc for dev_blockSums in compactWrapper failed.");
+    CUDA_CHECK("CUDA malloc for dev_blockSums in compactWrapper failed.");
 
     // Copy input data from host to device
     cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("CUDA memcpy for idata to dev_idata in compactWrapper failed.");
+    CUDA_CHECK("CUDA memcpy for idata to dev_idata in compactWrapper failed.");
 
     // Run the compaction and time it
     bool usingTimer = false;
-    if (!timer().gpu_timer_started)
+    if (!get_timer().gpu_timer_started)
     {
-        timer().startGpuTimer();
+        get_timer().startGpuTimer();
         usingTimer = true;
     }
 
@@ -277,12 +277,12 @@ int StreamCompaction::Shared::compactWrapper(int n, int* odata, const int* idata
 
     if (usingTimer)
     {
-        timer().endGpuTimer();
+        get_timer().endGpuTimer();
     }
 
     // Copy the compacted result back to host; note that compactCount elements are valid
     cudaMemcpy(odata, dev_odata, sizeof(int) * compactCount, cudaMemcpyDeviceToHost);
-    checkCUDAError("CUDA memcpy for dev_odata to host in compactWrapper failed.");
+    CUDA_CHECK("CUDA memcpy for dev_odata to host in compactWrapper failed.");
 
     // Free device memory
     cudaFree(dev_idata);

@@ -8,7 +8,7 @@ namespace CPU
 {
 using StreamCompaction::Common::PerformanceTimer;
 
-PerformanceTimer& timer()
+PerformanceTimer& get_timer()
 {
     static PerformanceTimer timer;
     return timer;
@@ -23,9 +23,9 @@ PerformanceTimer& timer()
 void scan(int n, int* odata, const int* idata)
 {
     bool usingTimer = false;
-    if (!timer().cpu_timer_started)  // added in order to call `scan` from other functions.
+    if (!get_timer().cpu_timer_started)  // added in order to call `scan` from other functions.
     {
-        timer().startCpuTimer();
+        get_timer().startCpuTimer();
         usingTimer = true;
     }
 
@@ -40,7 +40,7 @@ void scan(int n, int* odata, const int* idata)
 
     if (usingTimer)
     {
-        timer().endCpuTimer();
+        get_timer().endCpuTimer();
     }
 }
 
@@ -51,7 +51,7 @@ void scan(int n, int* odata, const int* idata)
  */
 int compactWithoutScan(int n, int* odata, const int* idata)
 {
-    timer().startCpuTimer();
+    get_timer().startCpuTimer();
 
     int outIndex = 0;  // pointer to current progress in out array
 
@@ -65,7 +65,7 @@ int compactWithoutScan(int n, int* odata, const int* idata)
         }
     }
 
-    timer().endCpuTimer();
+    get_timer().endCpuTimer();
     return outIndex;
 }
 
@@ -76,7 +76,7 @@ int compactWithoutScan(int n, int* odata, const int* idata)
  */
 int compactWithScan(int n, int* odata, const int* idata)
 {
-    timer().startCpuTimer();
+    get_timer().startCpuTimer();
 
     int* isNotZero = new int[n];
     int* scan_isNotZero = new int[n];
@@ -96,7 +96,7 @@ int compactWithScan(int n, int* odata, const int* idata)
         }
     }
 
-    timer().endCpuTimer();
+    get_timer().endCpuTimer();
 
     return scan_isNotZero[n - 1] + isNotZero[n - 1];  // due to exclusive scan
 }

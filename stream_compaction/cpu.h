@@ -6,7 +6,7 @@ namespace StreamCompaction
 {
 namespace CPU
 {
-StreamCompaction::Common::PerformanceTimer& timer();
+StreamCompaction::Common::PerformanceTimer& get_timer();
 
 void scan(int n, int* odata, const int* idata);
 

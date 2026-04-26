@@ -6,7 +6,7 @@ namespace StreamCompaction
 {
 namespace Efficient
 {
-StreamCompaction::Common::PerformanceTimer& timer();
+StreamCompaction::Common::PerformanceTimer& get_timer();
 
 void scan(int n, int* dev_scan, const int blockSize);
 

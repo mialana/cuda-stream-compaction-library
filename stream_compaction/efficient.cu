@@ -5,7 +5,7 @@
 
 using StreamCompaction::Common::PerformanceTimer;
 
-PerformanceTimer& StreamCompaction::Efficient::timer()
+PerformanceTimer& StreamCompaction::Efficient::get_timer()
 {
     static PerformanceTimer timer;
     return timer;
@@ -92,7 +92,7 @@ void StreamCompaction::Efficient::scan(int n, int* dev_scan, const int blockSize
         // n/2, n/4, n/8, ... 1
         int blocks = divup(paddedN >> (iter + 1), BLOCK_SIZE);
         kernel_efficientUpSweep<<<blocks, BLOCK_SIZE>>>(paddedN, stride, prevStride, dev_scan);
-        checkCUDAError("Perform Work-Efficient Scan Up Sweep Iteration CUDA kernel failed.");
+        CUDA_CHECK("Perform Work-Efficient Scan Up Sweep Iteration CUDA kernel failed.");
 
         prevStride = stride;
         stride = stride <<= 1;
@@ -109,7 +109,7 @@ void StreamCompaction::Efficient::scan(int n, int* dev_scan, const int blockSize
         // paddedN >> iter == number of active threads in this iter. 1, 2, 4, 8, ... n/2
         int blocks = divup(paddedN >> iter, BLOCK_SIZE);
         kernel_efficientDownSweep<<<blocks, BLOCK_SIZE>>>(paddedN, stride, nextStride, dev_scan);
-        checkCUDAError("Perform Work-Efficient Scan Down Sweep Iteration CUDA kernel failed.");
+        CUDA_CHECK("Perform Work-Efficient Scan Down Sweep Iteration CUDA kernel failed.");
 
         stride = nextStride;
         nextStride >>= 1;  // n/2, n/4, n/8, n/16, ...
@@ -130,17 +130,17 @@ void StreamCompaction::Efficient::scanWrapper(int n, int* odata, const int* idat
     int* dev_scan;
 
     cudaMalloc((void**)&dev_scan, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for scan array failed.");
+    CUDA_CHECK("CUDA malloc for scan array failed.");
 
     cudaMemcpy(dev_scan, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from input data to scan array failed.");
+    CUDA_CHECK("Memory copy from input data to scan array failed.");
 
     cudaDeviceSynchronize();
 
     bool usingTimer = false;
-    if (!timer().gpu_timer_started)  // added in order to call `scan` from other functions.
+    if (!get_timer().gpu_timer_started)  // added in order to call `scan` from other functions.
     {
-        timer().startGpuTimer();
+        get_timer().startGpuTimer();
         usingTimer = true;
     }
 
@@ -148,7 +148,7 @@ void StreamCompaction::Efficient::scanWrapper(int n, int* odata, const int* idat
 
     if (usingTimer)
     {
-        timer().endGpuTimer();
+        get_timer().endGpuTimer();
     }
 
     cudaMemcpy(odata, dev_scan, sizeof(int) * n, cudaMemcpyDeviceToHost);
@@ -177,28 +177,28 @@ int StreamCompaction::Efficient::compact(int n, int* odata, const int* idata)
     int* dev_indices;
 
     cudaMalloc((void**)&dev_idata, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for idata array failed.");
+    CUDA_CHECK("CUDA malloc for idata array failed.");
 
     cudaMalloc((void**)&dev_odata, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for odata array failed.");
+    CUDA_CHECK("CUDA malloc for odata array failed.");
 
     cudaMalloc((void**)&dev_bools, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for bools array failed.");
+    CUDA_CHECK("CUDA malloc for bools array failed.");
 
     cudaMalloc((void**)&dev_indices, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for indices array failed.");
+    CUDA_CHECK("CUDA malloc for indices array failed.");
 
     cudaMemcpy(dev_idata, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from input data to idata array failed.");
+    CUDA_CHECK("Memory copy from input data to idata array failed.");
     cudaMemcpy(dev_bools, odata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from output data to odata array failed.");
+    CUDA_CHECK("Memory copy from output data to odata array failed.");
 
     cudaDeviceSynchronize();
 
     int* indices = new int[n];  // create cpu side indices array
     int* bools = new int[n];
 
-    StreamCompaction::Efficient::timer().startGpuTimer();
+    StreamCompaction::Efficient::get_timer().startGpuTimer();
 
     int blocks = divup(n, BLOCK_SIZE);
 
@@ -206,16 +206,16 @@ int StreamCompaction::Efficient::compact(int n, int* odata, const int* idata)
     Common::kernMapToBoolean<<<blocks, BLOCK_SIZE>>>(n, dev_bools, dev_idata);
 
     cudaMemcpy(bools, dev_bools, sizeof(int) * n, cudaMemcpyDeviceToHost);
-    checkCUDAError("Memory copy from device bools to indices array failed.");
+    CUDA_CHECK("Memory copy from device bools to indices array failed.");
 
     scanWrapper(n, indices, bools);
 
     cudaMemcpy(dev_indices, indices, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from indices to device indices array failed.");
+    CUDA_CHECK("Memory copy from indices to device indices array failed.");
 
     Common::kernScatter<<<blocks, BLOCK_SIZE>>>(n, dev_odata, dev_idata, dev_bools, dev_indices);
 
-    StreamCompaction::Efficient::timer().endGpuTimer();
+    StreamCompaction::Efficient::get_timer().endGpuTimer();
 
     cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost);
 

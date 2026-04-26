@@ -2,56 +2,49 @@
 
 #include <cstdio>
 #include <iostream>
-#include <ctime>
+#include <chrono>
+#include <random>
 
-template<typename T>
-int cmpArrays(int n, T* a, T* b)
+constexpr int SIZE = 1 << 24;
+constexpr int NPOT = SIZE - 3;  // Non-Power-Of-Two
+
+constexpr char PINK[] = "\033[1;35m";
+constexpr char RED[] = "\033[1;31m";
+constexpr char GREEN[] = "\033[1;32m";
+constexpr char RESET[] = "\033[0m";
+
+template<std::integral T>
+inline bool cmpArrays(int n, T* a, T* b)
 {
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; ++i)
     {
         if (a[i] != b[i])
         {
-            if constexpr (std::is_same_v<T, int>)
-            {
-                printf("    a[%i] = %i, b[%i] = %i\n", i, a[i], i, b[i]);
-            }
-            else if constexpr (std::is_floating_point_v<T>)
-            {
-                printf("    a[%i] = %.2f, b[%i] = %.2f\n", i, a[i], i, b[i]);
-            }
+            printf("    a[%i] = %i, b[%i] = %i\n", i, static_cast<int>(a[i]), i,
+                   static_cast<int>(b[i]));
 
-            return 1;
+            return false;
         }
     }
-    return 0;
+    return true;
 }
 
 inline void printDesc(const char* desc)
 {
-    printf("\033[1;35m==== %s ====\033[0m\n", desc);  // make pink
+    std::cout << PINK << "=== " << desc << " ===" << RESET << std::endl;
 }
 
-template<typename T>
+template<std::integral T>
 inline void printCmpResult(int n, T* a, T* b)
 {
-    printf("    %s \033[0m\n", cmpArrays(n, a, b) ? "\033[1;31mFAIL VALUE" : "\033[1;32mpassed");
-}
-
-template<typename T>
-inline void printCmpLenResult(int n, int expN, T* a, T* b)
-{
-    if (n != expN)
-    {
-        printf("    expected %d elements, got %d\n", expN, n);
-    }
-    printf("    %s \033[0m\n", (n == -1 || n != expN) ? "\033[1;31mFAIL COUNT"
-                               : cmpArrays(n, a, b)   ? "\033[1;31mFAIL VALUE"
-                                                      : "\033[1;32mpassed");
+    if (cmpArrays(n, a, b)) std::cout << RED << "FAILED";
+    else std::cout << GREEN << "PASSED";
+    std::cout << RESET << std::endl;
 }
 
 inline void zeroArray(int n, int* a)
 {
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; ++i)
     {
         a[i] = 0;
     }
@@ -59,65 +52,56 @@ inline void zeroArray(int n, int* a)
 
 inline void onesArray(int n, int* a)
 {
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; ++i)
     {
         a[i] = 1;
     }
 }
 
-template<typename T>
-inline void genArray(int n, T* a, int maxval, float offset)
+template<std::integral T>
+inline void genArray(int n, T* a, int max_val)
 {
-    srand(time(nullptr) + offset);
+    std::random_device rd;
+    std::mt19937 gen(rd());  // initialize Mersenne Twister engine
+    std::uniform_int_distribution<T> distrib(0, max_val);
 
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; ++i)
     {
-        a[i] = (T)(rand() % maxval);
+        a[i] = distrib(gen);
     }
 }
 
-inline void copyArray(int n, int* copy, const int* a)
+template<std::integral T>
+inline void genConsecutiveArray(int n, T* a)
 {
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < n; ++i)
     {
-        copy[i] = a[i];
+        a[i] = static_cast<T>(i);
     }
 }
 
-inline void genConsecutiveArray(int n, int* a)
+template<std::integral T>
+inline void copyArray(int n, const T* a, T* out_copy)
 {
-    for (int i = 0; i < n; i++)
-    {
-        a[i] = i;
-    }
+    memcpy(out_copy, a, n * sizeof(T));
 }
 
-template<typename T>
-inline void printArray(int n, T* a, bool abridged = false)
+template<std::integral T>
+inline void printArray(int n, T* a, bool abridged = true)
 {
-    printf("    [ ");
-    for (int i = 0; i < n; i++)
+    int max_size = abridged ? std::min(n, 16) : n;
+
+    std::cout << '\t' << "[ ";
+    for (int i = 0; i < max_size; ++i)
     {
-        if (abridged && i + 2 == 15 && n > 16)
-        {
-            i = n - 2;
-            printf("... ");
-        }
-        if constexpr (std::is_integral_v<T>)
-        {
-            printf("%3d ", static_cast<int>(a[i]));
-        }
-        else if constexpr (std::is_floating_point_v<T>)
-        {
-            printf("%3.1f ", static_cast<double>(a[i]));
-        }
+        printf("%i ", static_cast<int>(a[i]));
     }
-    printf("] - count: ");
-    printf("%d\n", n);
+    if (abridged) std::cout << "...";
+    printf(" ] - count: %i\n", n);
 }
 
 template<typename T>
-inline void printElapsedTime(T time, const char* note = "")
+inline void printElapsedTime(T time)
 {
-    std::cout << "   elapsed time: " << time << "ms    " << note << std::endl;
+    std::cout << '\t' << "ELAPSED TIME: " << time << "ms" << std::endl;
 }

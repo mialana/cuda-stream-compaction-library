@@ -21,7 +21,7 @@ using StreamCompaction::Common::PerformanceTimer;
 
 using thrust::host_vector;
 
-PerformanceTimer& timer()
+PerformanceTimer& get_timer()
 {
     static PerformanceTimer timer;
     return timer;
@@ -37,11 +37,11 @@ void scan(int n, int* odata, const int* idata)
     thrust::device_vector<int> dev_idata = host_idata;  // built-in assignment conversion
     thrust::device_vector<int> dev_odata(n);  // for output
 
-    timer().startGpuTimer();
+    get_timer().startGpuTimer();
 
     thrust::exclusive_scan(dev_idata.begin(), dev_idata.end(), dev_odata.begin());
 
-    timer().endGpuTimer();
+    get_timer().endGpuTimer();
 
     // copy result back to host
     thrust::copy(dev_odata.begin(), dev_odata.end(), odata);
@@ -52,9 +52,9 @@ void radixSort(int n, int* o_data, const int* i_data)
     thrust::device_vector<int> d_copy(i_data, i_data + n);
 
     bool usingTimer = false;
-    if (!timer().gpu_timer_started)
+    if (!get_timer().gpu_timer_started)
     {
-        timer().startGpuTimer();
+        get_timer().startGpuTimer();
         usingTimer = true;
     }
 
@@ -62,7 +62,7 @@ void radixSort(int n, int* o_data, const int* i_data)
 
     if (usingTimer)
     {
-        timer().endGpuTimer();
+        get_timer().endGpuTimer();
     }
 
     thrust::copy(d_copy.begin(), d_copy.end(), o_data);
@@ -75,9 +75,9 @@ void radixSortByKey(int n, int* out_keys, int* out_values, const int* in_keys, c
     thrust::device_vector<int> d_values(in_values, in_values + n);
 
     bool usingTimer = false;
-    if (!timer().gpu_timer_started)
+    if (!get_timer().gpu_timer_started)
     {
-        timer().startGpuTimer();
+        get_timer().startGpuTimer();
         usingTimer = true;
     }
 
@@ -86,7 +86,7 @@ void radixSortByKey(int n, int* out_keys, int* out_values, const int* in_keys, c
 
     if (usingTimer)
     {
-        timer().endGpuTimer();
+        get_timer().endGpuTimer();
     }
 
     // Copy sorted keys and values back to host

@@ -110,20 +110,20 @@ void StreamCompaction::Radix::sortWrapper(int n, int* odata, const int* idata,
     int* dev_indices;
 
     cudaMalloc((void**)&dev_dataA, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for device idata array failed.");
+    CUDA_CHECK("CUDA malloc for device idata array failed.");
 
     cudaMalloc((void**)&dev_dataB, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for device odata array failed.");
+    CUDA_CHECK("CUDA malloc for device odata array failed.");
 
     cudaMalloc((void**)&dev_blockSums, sizeof(int) * blockSums);
-    checkCUDAError("CUDA malloc for device block sums array failed.");
+    CUDA_CHECK("CUDA malloc for device block sums array failed.");
 
     cudaMalloc((void**)&dev_indices, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for device indices array failed.");
+    CUDA_CHECK("CUDA malloc for device indices array failed.");
 
     // Copy input data to device
     cudaMemcpy(dev_dataA, idata, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from host data to device array failed.");
+    CUDA_CHECK("Memory copy from host data to device array failed.");
 
     bool usingTimer = false;
     if (!timer().gpu_timer_started)
@@ -142,7 +142,7 @@ void StreamCompaction::Radix::sortWrapper(int n, int* odata, const int* idata,
 
     // Copy sorted data back to host
     cudaMemcpy(odata, dev_dataA, sizeof(int) * n, cudaMemcpyDeviceToHost);
-    checkCUDAError("Memory copy from device array to host data failed.");
+    CUDA_CHECK("Memory copy from device array to host data failed.");
 
     // Free device memory
     cudaFree(dev_dataA);
@@ -199,29 +199,29 @@ void StreamCompaction::Radix::sortByKeyWrapper(int n, int* okeys, const int* ike
     int* dev_indices;
 
     cudaMalloc((void**)&dev_keysA, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for device ikeys array failed.");
+    CUDA_CHECK("CUDA malloc for device ikeys array failed.");
 
     cudaMalloc((void**)&dev_keysB, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for device okeys array failed.");
+    CUDA_CHECK("CUDA malloc for device okeys array failed.");
 
     cudaMalloc((void**)&dev_valuesA, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for device ivalues array failed.");
+    CUDA_CHECK("CUDA malloc for device ivalues array failed.");
 
     cudaMalloc((void**)&dev_valuesB, sizeof(int) * paddedN);
-    checkCUDAError("CUDA malloc for device ovalues array failed.");
+    CUDA_CHECK("CUDA malloc for device ovalues array failed.");
 
     cudaMalloc((void**)&dev_blockSums, sizeof(int) * blockSums);
-    checkCUDAError("CUDA malloc for device block sums array failed.");
+    CUDA_CHECK("CUDA malloc for device block sums array failed.");
 
     cudaMalloc((void**)&dev_indices, sizeof(int) * n);
-    checkCUDAError("CUDA malloc for device indices array failed.");
+    CUDA_CHECK("CUDA malloc for device indices array failed.");
 
     // Copy input data to device
     cudaMemcpy(dev_keysA, ikeys, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from host ikeys to device array failed.");
+    CUDA_CHECK("Memory copy from host ikeys to device array failed.");
 
     cudaMemcpy(dev_valuesA, ivalues, sizeof(int) * n, cudaMemcpyHostToDevice);
-    checkCUDAError("Memory copy from host values to device array failed.");
+    CUDA_CHECK("Memory copy from host values to device array failed.");
 
     bool usingTimer = false;
     if (!timer().gpu_timer_started)
@@ -240,10 +240,10 @@ void StreamCompaction::Radix::sortByKeyWrapper(int n, int* okeys, const int* ike
 
     // Copy sorted data back to host
     cudaMemcpy(okeys, dev_keysA, sizeof(int) * n, cudaMemcpyDeviceToHost);
-    checkCUDAError("Memory copy from device array to host data failed.");
+    CUDA_CHECK("Memory copy from device array to host data failed.");
 
     cudaMemcpy(ovalues, dev_valuesA, sizeof(int) * n, cudaMemcpyDeviceToHost);
-    checkCUDAError("Memory copy from device array to host data failed.");
+    CUDA_CHECK("Memory copy from device array to host data failed.");
 
     // Free device memory
     cudaFree(dev_keysA);

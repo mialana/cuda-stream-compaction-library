@@ -1,6 +1,6 @@
 #include "common.h"
 
-void checkCUDAErrorFn(const char* msg, const char* file, int line)
+void check_CUDA_error_fn(const char* msg, const char* file, int line)
 {
     cudaError_t err = cudaGetLastError();
     if (cudaSuccess == err)
@@ -53,8 +53,7 @@ __global__ void kernel_inclusiveToExclusive(int n, int identity, const int* iDat
     {
         oData[index] = identity;
     }
-    else
-    {
+    else {
         oData[index] = iData[index - 1];
     }
 }

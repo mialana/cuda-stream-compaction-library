@@ -31,14 +31,35 @@ if(STREAM_COMPACTION_BUILD_TESTS)
 
     set(TESTS_HEADERS
         "${STREAM_COMPACTION_TESTS_ROOT}/testing_helpers.h"
+        "${STREAM_COMPACTION_TESTS_ROOT}/test_utils.h"
     )
     set(TESTS_SOURCES
         "${STREAM_COMPACTION_TESTS_ROOT}/main.cu"
+        "${STREAM_COMPACTION_TESTS_ROOT}/scan_tests.cu"
+        "${STREAM_COMPACTION_TESTS_ROOT}/radix_sort_tests.cu"
+        "${STREAM_COMPACTION_TESTS_ROOT}/stream_compaction_tests.cu"
     )
 
     add_executable(${STREAM_COMPACTION_TESTS_TARGET} ${TESTS_SOURCES} ${TESTS_HEADERS})
 
-    target_link_libraries(${STREAM_COMPACTION_TESTS_TARGET} PRIVATE stream_compaction::stream_compaction)
+    # configure GoogleTest
+    include(FetchContent)
+    FetchContent_Declare(
+        googletest
+        URL https://github.com/google/googletest/archive/refs/heads/main.zip
+    )
+
+    if(WIN32)
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE) # force shared runtime
+    endif()
+    FetchContent_MakeAvailable(googletest)
+
+    enable_testing()
+
+    target_link_libraries(${STREAM_COMPACTION_TESTS_TARGET} PRIVATE stream_compaction::stream_compaction GTest::gtest_main)
+
+    include(GoogleTest)
+    gtest_discover_tests(${STREAM_COMPACTION_TESTS_TARGET}) # auto-discover tests for CTest
 
     if(CMAKE_GENERATOR MATCHES "Visual Studio")
         # make tests target the startup project in VS

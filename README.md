@@ -8,33 +8,31 @@ University of Pennsylvania, CIS 5650: GPU Programming and Architecture, Project 
 
 ## Project Description
 
-This project implements **stream compaction** in CUDA, which is used to remove `0`s from an array of integers. In a path tracer, this translates to removing terminated paths from the active ray pool, making it an important performance optimization.
+This project implements the **stream compaction** algorithm in CUDA. The goal of stream compaction is simply to remove `0`s from an array of integers. In a pathtracer, this can be used to remove terminated paths from the active ray pool, an important performance optimization. Furthermore, stream compaction relies on the execution of **scan** -- a **prefix sum** operation -- as a pre-processing step.
 
-Stream compaction relies on the **prefix sum (scan)** operation. In this project, I implemented:
+In this project, I implemented:
 
 - A **CPU baseline implementation** of scan and compaction.
-- A **Naive GPU scan** using repeated passes and global memory.
-- A **Work-Efficient GPU scan** using an up-sweep/down-sweep balanced tree method.
-- A **GPU stream compaction** method built on top of the work-efficient scan.
-- A **Thrust-based scan** (wrapping `thrust::exclusive_scan`).
-- **Extra Credit (Part 5)**: analysis of inefficiency in work-efficient scan and optimizations.
+- A **Naive CUDA scan** using repeated passes and global memory.
+- A **Work-Efficient CUDA scan** using an up-sweep/down-sweep balanced tree method.
+- A **CUDA stream compaction** method built on top of the work-efficient scan.
 
-## Implementation Breakdown
+## Implementations Breakdown
 
 ### CPU Scan & Compaction
 
-- **Scan**: A straightforward exclusive prefix sum using a sequential loop.
+- **Scan**: A quite straightforward exclusive prefix sum implementation using a sequential for-loop.
 - **Compaction (without scan)**: Linearly traverses the array, writing only nonzero elements into the output.
-- **Compaction (with scan)**: Converts the array to a boolean mask, performs a scan to compute write indices, and scatters nonzero values. Mirrors the GPU design but slower due to sequential execution.
+- **Compaction (with scan)**: Converts the array to a boolean mask, performs a scan to compute write indices, and scatters nonzero values. Mirrors the CUDA design but slower due to sequential execution.
 
-### Naive GPU Scan
+### Naive CUDA Scan
 
 - Performs `ilog2ceil(n)` iterations.
 - In each iteration, every thread reads from the input array and writes to a separate output array with an increasing offset.
 - Arrays are swapped between passes.
 - **Downside**: Requires multiple full passes over global memory. Performance is sensitive to block configuration and can hit _performance cliffs_ when register or memory usage reduces parallel occupancy.
 
-### Work-Efficient GPU Scan
+### Work-Efficient CUDA Scan
 
 - Uses the Blelloch scan:
     1. **Up-sweep (reduce)**: Build a binary tree of partial sums.
@@ -43,7 +41,7 @@ Stream compaction relies on the **prefix sum (scan)** operation. In this project
 - Padding is used for non-power-of-two sizes.
 - Much more efficient because each element is touched `O(log n)` times, rather than `O(n log n)` total work.
 
-### GPU Stream Compaction
+### CUDA Stream Compaction
 
 - Built on the work-efficient scan:
     1. **Map** input values to booleans.
@@ -103,7 +101,7 @@ For a fixed array size of 262,144, I measured how block size affects scan perfor
 ![scan performance](docs/assets/scan_performance.png)
 
 - CPU dominates at tiny N but scales linearly and becomes slow by ~16M+.
-- Naive GPU scan is competitive at ~1M–4M but grows less efficient due to repeated full passes over global memory.
+- Naive CUDA scan is competitive at ~1M–4M but grows less efficient due to repeated full passes over global memory.
 - Work-Efficient scan consistently outperforms Naive for large N and shows best scalability.
 - Thrust scan suffers heavy overhead and only “catches up” at huge sizes, still slower than custom efficient implementation.
 
@@ -134,26 +132,26 @@ For a fixed array size of 262,144, I measured how block size affects scan perfor
 
 4. Elapsed Time for Compaction (Power-of-Two Sizes, Block Size of 16)
 
-| N          | CPU (No Scan) (ms) | CPU (With Scan) (ms) | Work-Eff GPU (ms) |
-| ---------- | ------------------ | -------------------- | ----------------- |
-| 64         | 0.000205           | 0.000428             | 0.079904          |
-| 256        | 0.000573           | 0.000715             | 0.073536          |
-| 1,024      | 0.001745           | 0.003360             | 0.084352          |
-| 4,096      | 0.006417           | 0.012418             | 0.097120          |
-| 16,384     | 0.024499           | 0.052908             | 0.183584          |
-| 65,536     | 0.103375           | 0.264867             | 0.616352          |
-| 262,144    | 0.412454           | 0.881458             | 1.587170          |
-| 1,048,576  | 2.178310           | 5.862320             | 8.874690          |
-| 4,194,304  | 7.599850           | 22.914500            | 21.235400         |
-| 16,777,216 | 28.617200          | 85.529100            | 65.237300         |
-| 67,108,864 | 113.149000         | 427.137000           | 253.671000        |
+| N          | CPU (No Scan) (ms) | CPU (With Scan) (ms) | Work-Eff CUDA (ms) |
+| ---------- | ------------------ | -------------------- | ------------------ |
+| 64         | 0.000205           | 0.000428             | 0.079904           |
+| 256        | 0.000573           | 0.000715             | 0.073536           |
+| 1,024      | 0.001745           | 0.003360             | 0.084352           |
+| 4,096      | 0.006417           | 0.012418             | 0.097120           |
+| 16,384     | 0.024499           | 0.052908             | 0.183584           |
+| 65,536     | 0.103375           | 0.264867             | 0.616352           |
+| 262,144    | 0.412454           | 0.881458             | 1.587170           |
+| 1,048,576  | 2.178310           | 5.862320             | 8.874690           |
+| 4,194,304  | 7.599850           | 22.914500            | 21.235400          |
+| 16,777,216 | 28.617200          | 85.529100            | 65.237300          |
+| 67,108,864 | 113.149000         | 427.137000           | 253.671000         |
 
 ![compaction performance](docs/assets/compaction_performance.png)
 
 - CPU methods are very fast until ~1M elements.
-- Work-efficient GPU compaction scales much better and overtakes CPU beyond ~1M.
+- Work-efficient CUDA compaction scales much better and overtakes CPU beyond ~1M.
 - CPU compact-with-scan is always slower than CPU without-scan because of extra overhead, but matches GPU structure more closely.
-- The longer GPU elapsed times are most likely due to many CPU–GPU data transfers.
+- The longer CUDA elapsed times are most likely due to many CPU–GPU data transfers.
 
 ---
 
@@ -161,7 +159,7 @@ For a fixed array size of 262,144, I measured how block size affects scan perfor
 
 - **CPU vs GPU tradeoff**:
     - CPU wins at small N (sub-65k).
-    - GPU (work-efficient) dominates at large N.
+    - CUDA (work-efficient) dominates at large N.
 - **Naive scan inefficiency**:
     - Requires multiple kernel passes with global memory reads/writes.
     - Very sensitive to block size: some configurations unexpectedly slow down.
@@ -175,12 +173,12 @@ For a fixed array size of 262,144, I measured how block size affects scan perfor
     - Competitive only at very large N, but still slower than custom efficient implementation.
     - When profiling thrust::exclusive_scan with Nsight, I believe the timeline shows significant overhead from extra kernel launches and temporary memory allocations inside Thrust. These allocations (device_vector construction, dispatch setup) are not present in the custom implementations and explain why Thrust lags behind for small and medium array sizes, despite its optimized kernels. For very large arrays, the cost of setup is amortized, and Thrust performs competitively.
 - **Compaction**:
-    - Mirrors scan performance — GPU methods need large N to be worthwhile.
+    - Mirrors scan performance — CUDA methods need large N to be worthwhile.
     - For small arrays, CPU is much cheaper due to launch overhead.
 - **Extra Credit Part 5**:
     - Confirmed GPU underutilization at deeper tree levels.
     - Optimizations (adjusting thread launches) improved scaling.
-    - Demonstrates importance of occupancy tuning for GPU algorithms.
+    - Demonstrates importance of occupancy tuning for CUDA algorithms.
 
 **Q: What is the performance bottleneck?**
 
@@ -191,7 +189,7 @@ For a fixed array size of 262,144, I measured how block size affects scan perfor
 
 **Q: Is memory I/O or computation dominant?**
 
-- Memory I/O dominates in GPU scans due to repeated global memory accesses.
+- Memory I/O dominates in CUDA scans due to repeated global memory accesses.
 - Computation is relatively cheap compared to memory latency.
 
 ---
