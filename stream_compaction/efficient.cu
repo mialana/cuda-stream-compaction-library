@@ -17,24 +17,21 @@ PerformanceTimer& efficient::get_timer()
 
 __global__ void kernel_efficient_up_sweep(int padded_n, int stride, int prev_stride, int* scan)
 {
-    unsigned stride_idx = blockIdx.x * blockDim.x + threadIdx.x;  // 0, 1, 2, 3... (like normal)
+    int stride_idx = common::kernel_compute_global_index_1d();  // 0, 1, 2, 3... (like normal)
     // but this is not target elem index
 
-    unsigned stride_start = stride_idx * stride;  // index where this stride starts
+    int stride_start = stride_idx * stride;  // index where this stride starts
 
     // last index in stride. accumulated value of stride always goes here
-    unsigned accumulator_idx = stride_start + stride - 1;
+    int accumulator_idx = stride_start + stride - 1;
 
-    if (accumulator_idx >= padded_n)
-    {
-        return;
-    }
+    if (accumulator_idx >= padded_n) return;
 
     int accumulator = scan[accumulator_idx];  // pre-fetch accumulator's value
 
     // this new stride has swallowed two strides total
     // siblingIdx is the index of the other stride that now no longer exists
-    unsigned sibling_idx = stride_start + prev_stride - 1;  // doesn't depend on accumulator
+    int sibling_idx = stride_start + prev_stride - 1;  // doesn't depend on accumulator
 
     scan[accumulator_idx] = accumulator + scan[sibling_idx];
 }
@@ -43,20 +40,17 @@ __global__ void kernel_efficient_down_sweep(int padded_n, int stride,
                                             int next_stride,  // nextStride == (stride / 2)
                                             int* scan)
 {
-    unsigned stride_idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int stride_idx = common::kernel_compute_global_index_1d();
 
-    unsigned stride_start = stride_idx * stride;
+    int stride_start = stride_idx * stride;
 
-    unsigned right_child_idx = stride_start + stride - 1;
-    if (right_child_idx >= padded_n)
-    {
-        return;
-    }
+    int right_child_idx = stride_start + stride - 1;
+    if (right_child_idx >= padded_n) return;
 
     int right_child = scan[right_child_idx];
 
     // leftChild and rightChild are nextSTRIDE indices apart
-    unsigned left_child_idx = stride_start + next_stride - 1;
+    int left_child_idx = stride_start + next_stride - 1;
     int left_child = scan[left_child_idx];  // does not depend on first memory read
 
     // give left child right child's value
@@ -91,7 +85,7 @@ void scan(int n, const int block_size, int* dev_scan)
     for (int iter = 0; iter < num_layers; iter++)
     {
         // n/2, n/4, n/8, ... 1
-        unsigned blocks = divup(padded_n >> (iter + 1), kBLOCK_SIZE);
+        int blocks = divup(padded_n >> (iter + 1), kBLOCK_SIZE);
         kernel_efficient_up_sweep<<<blocks, kBLOCK_SIZE>>>(padded_n, stride, prev_stride, dev_scan);
         CUDA_KERNEL_CHECK();
 
@@ -108,7 +102,7 @@ void scan(int n, const int block_size, int* dev_scan)
     int next_stride = stride >> 1;  // n/2, n/4, ... 1
     for (int iter = num_layers; iter > 0; iter--)
     {
-        unsigned blocks = divup(padded_n >> iter, kBLOCK_SIZE);
+        int blocks = divup(padded_n >> iter, kBLOCK_SIZE);
         kernel_efficient_down_sweep<<<blocks, kBLOCK_SIZE>>>(padded_n, stride, next_stride,
                                                              dev_scan);
         CUDA_KERNEL_CHECK();
@@ -118,11 +112,7 @@ void scan(int n, const int block_size, int* dev_scan)
     }
 }
 
-/************************************************************************************************ */
-
-/**
- * Performs prefix-sum (aka scan) on idata, storing the result into odata.
- */
+// Performs prefix-sum (aka scan) on idata, storing the result into odata.
 void scan_wrapper(int n, const int* idata, int* odata)
 {
     int padded_n = 1 << ilog2_ceil(n);
@@ -145,10 +135,7 @@ void scan_wrapper(int n, const int* idata, int* odata)
 
     scan(n, kBLOCK_SIZE, dev_scan);
 
-    if (using_timer)
-    {
-        get_timer().end_timer<GPU>();
-    }
+    if (using_timer) get_timer().end_timer<GPU>();
 
     CUDA_CHECK(cudaMemcpy(odata, dev_scan, sizeof(int) * n, cudaMemcpyDeviceToHost));
 
@@ -192,7 +179,7 @@ int compact(int n, int* odata, const int* idata)
     int* indices = new int[n];  // create cpu side indices array
     int* bools = new int[n];
 
-    stream_compaction::efficient::get_timer().start_timer<GPU>();
+    get_timer().start_timer<GPU>();
 
     int blocks = divup(n, kBLOCK_SIZE);
 
@@ -207,7 +194,7 @@ int compact(int n, int* odata, const int* idata)
 
     common::kernel_scatter<<<blocks, kBLOCK_SIZE>>>(n, dev_bools, dev_indices, dev_idata, dev_odata);
 
-    stream_compaction::efficient::get_timer().end_timer<GPU>();
+    get_timer().end_timer<GPU>();
 
     CUDA_CHECK(cudaMemcpy(odata, dev_odata, sizeof(int) * n, cudaMemcpyDeviceToHost));
 

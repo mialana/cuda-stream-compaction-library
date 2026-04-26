@@ -25,28 +25,36 @@ protected:
     std::vector<int> _actual{};
 };
 
-constexpr int kMAX_POT = 6;
-constexpr std::array<int, kMAX_POT> kPOT_VALUES = []
+constexpr int kNUM_POT = 24;
+constexpr std::array<int, kNUM_POT> kPOT_VALUES = []
 {
-    std::array<int, kMAX_POT> arr{};
-    for (int i = 0; i < kMAX_POT; ++i)
+    std::array<int, kNUM_POT> arr{};
+    for (int i = 0; i < kNUM_POT; ++i)
         arr[i] = 1 << i;
+    return arr;
+}();
+
+constexpr int kNUM_NPOT = kNUM_POT - 2;  // '1' and '2' will not have an NPOT test case
+constexpr std::array<int, kNUM_NPOT> kNPOT_VALUES = []
+{
+    std::array<int, kNUM_NPOT> arr{};
+    for (int i = 0, pot = 2; i < kNUM_NPOT; ++i, ++pot)
+        arr[i] = (1 << pot) - 3;
     return arr;
 }();
 
 INSTANTIATE_TEST_SUITE_P(PowersOfTwo, ScanTest, testing::ValuesIn(kPOT_VALUES),
                          testing::PrintToStringParamName());
 
-TEST_P(ScanTest, naiveScanPowerOfTwo)
+INSTANTIATE_TEST_SUITE_P(NonPowersOfTwo, ScanTest, testing::ValuesIn(kNPOT_VALUES),
+                         testing::PrintToStringParamName());
+
+TEST_P(ScanTest, naiveScan)
 {
     cpu::scan(GetParam(), _source.data(), _expected.data());
     cpu::get_timer().flush<CPU>();
     naive::scan_wrapper(GetParam(), kBLOCK_SIZE, _source.data(), _actual.data());
     naive::get_timer().flush<GPU>();
-
-    print_container(_source);
-    print_container(_expected);
-    print_container(_actual);
 
     ASSERT_EQ(_expected, _actual);
 }

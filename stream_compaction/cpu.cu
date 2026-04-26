@@ -71,19 +71,12 @@ int compact_with_scan(int n, const int* idata, int* odata)
     int* scan_is_not_zero = new int[n];
 
     for (int i = 0; i < n; i++)
-    {
         is_not_zero[i] = idata[i] != 0 ? 1 : 0;  // val is 1 at i if idata[i] != 0, else 0
-    }
 
     scan(n, is_not_zero, scan_is_not_zero);  // scan result is index in final array
 
     for (int i = 0; i < n; i++)
-    {
-        if (is_not_zero[i])
-        {
-            odata[scan_is_not_zero[i]] = idata[i];
-        }
-    }
+        if (is_not_zero[i]) odata[scan_is_not_zero[i]] = idata[i];
 
     get_timer().end_timer<CPU>();
 

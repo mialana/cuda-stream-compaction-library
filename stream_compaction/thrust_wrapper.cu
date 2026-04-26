@@ -57,10 +57,7 @@ void radix_sort(int n, const int* idata, int* odata)
 
     thrust::sort(dev_copy.begin(), dev_copy.end());
 
-    if (using_timer)
-    {
-        get_timer().end_timer<GPU>();
-    }
+    if (using_timer) get_timer().end_timer<GPU>();
 
     thrust::copy(dev_copy.begin(), dev_copy.end(), odata);
 }
@@ -81,10 +78,7 @@ void radix_sort_by_key(int n, const int* ikeys, const int* ivalues, int* okeys, 
     // Sort keys and reorder values accordingly
     thrust::sort_by_key(dev_ikeys.begin(), dev_ikeys.end(), dev_ivalues.begin());
 
-    if (using_timer)
-    {
-        get_timer().end_timer<GPU>();
-    }
+    if (using_timer) get_timer().end_timer<GPU>();
 
     // Copy sorted keys and values back to host
     thrust::copy(dev_ikeys.begin(), dev_ikeys.end(), okeys);

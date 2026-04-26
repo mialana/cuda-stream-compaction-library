@@ -6,8 +6,7 @@ namespace stream_compaction::efficient
 {
 common::PerformanceTimer& get_timer();
 
-__global__ void kernel_efficient_up_sweep(unsigned int padded_n, int stride, int prev_stride,
-                                          int* scan);
+__global__ void kernel_efficient_up_sweep(int padded_n, int stride, int prev_stride, int* scan);
 
 __global__ void kernel_efficient_down_sweep(int padded_n, int stride,
                                             int next_stride,  // next_stride == (stride / 2)

@@ -19,18 +19,13 @@ PerformanceTimer& get_timer()
 }
 
 __device__ __host__ int kernel_isolate_bit(int n, int target_bit)
-{
-    return (n >> target_bit) & 1;
-}
+{ return (n >> target_bit) & 1; }
 
 __global__ void kernel_split(int n, int target_bit, const int* idata, int* out_not_lsb)
 {
-    unsigned index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int index = common::kernel_compute_global_index_1d();
 
-    if (index >= n)
-    {
-        return;
-    }
+    if (index >= n) return;
 
     out_not_lsb[index] = kernel_isolate_bit(idata[index], target_bit) ^ 1;
 }
@@ -38,36 +33,28 @@ __global__ void kernel_split(int n, int target_bit, const int* idata, int* out_n
 __global__ void kernel_compute_scatter_indices(int n, const int target_bit, const int* scan,
                                                const int* idata, int* indices)
 {
-    unsigned index = blockIdx.x * blockDim.x + threadIdx.x;
+    int index = common::kernel_compute_global_index_1d();
 
-    if (index >= n)
-    {
-        return;
-    }
+    if (index >= n) return;
 
     __shared__ int total_falses;
     if (threadIdx.x == 0)
-    {
         total_falses = (kernel_isolate_bit(idata[n - 1], target_bit) ^ 1) + scan[n - 1];
-    }
 
     __syncthreads();  // wait for total_falses
 
     // if value is 1, we shift right by total falses minus falses before current index
     // if value is 0, we set to position based on how many other falses / 0s come before it
     indices[index] = kernel_isolate_bit(idata[index], target_bit)
-                         ? static_cast<int>(index) + (total_falses - scan[index])
+                         ? index + (total_falses - scan[index])
                          : scan[index];
 }
 
 __global__ void kernel_scatter(int n, const int* indices, const int* idata, int* odata)
 {
-    unsigned index = (blockIdx.x * blockDim.x) + threadIdx.x;
+    int index = common::kernel_compute_global_index_1d();
 
-    if (index >= n)
-    {
-        return;
-    }
+    if (index >= n) return;
 
     int address = indices[index];
     odata[address] = idata[index];  // Scatter the value to its new position
@@ -130,10 +117,7 @@ void sort_wrapper(int n, int max_bit_length, int block_size, const int* idata, i
 
     sort(n, max_bit_length, block_size, dev_block_sums, dev_indices, dev_idata, dev_odata);
 
-    if (using_timer)
-    {
-        get_timer().end_timer<GPU>();
-    }
+    if (using_timer) get_timer().end_timer<GPU>();
 
     // Copy sorted data back to host
     CUDA_CHECK(cudaMemcpy(odata, dev_idata, sizeof(int) * n, cudaMemcpyDeviceToHost));
@@ -218,10 +202,7 @@ void sort_by_key_wrapper(int n, int max_bit_length, int block_size, const int* i
     sort_by_key(n, max_bit_length, block_size, dev_block_sums, dev_indices, dev_ikeys, dev_okeys,
                 dev_ivalues, dev_ovalues);
 
-    if (using_timer)
-    {
-        get_timer().end_timer<GPU>();
-    }
+    if (using_timer) get_timer().end_timer<GPU>();
 
     // Copy sorted data back to host
     CUDA_CHECK(cudaMemcpy(okeys, dev_ikeys, sizeof(int) * n, cudaMemcpyDeviceToHost));

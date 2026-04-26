@@ -30,9 +30,7 @@ inline bool cmp_arrays(int n, T* a, T* b)
 }
 
 inline void print_desc(const char* desc)
-{
-    std::cout << kPINK << "=== " << desc << " ===" << kRESET << std::endl;
-}
+{ std::cout << kPINK << "=== " << desc << " ===" << kRESET << std::endl; }
 
 template<std::integral T>
 inline void print_cmp_result(int n, T* a, T* b)
@@ -45,17 +43,13 @@ inline void print_cmp_result(int n, T* a, T* b)
 inline void zero_array(int n, int* a)
 {
     for (int i = 0; i < n; ++i)
-    {
         a[i] = 0;
-    }
 }
 
 inline void ones_array(int n, int* a)
 {
     for (int i = 0; i < n; ++i)
-    {
         a[i] = 1;
-    }
 }
 
 template<std::integral T>
@@ -66,25 +60,19 @@ inline void gen_array(int n, T* a, int max_val)
     std::uniform_int_distribution<T> distrib(0, max_val);
 
     for (int i = 0; i < n; ++i)
-    {
         a[i] = distrib(gen);
-    }
 }
 
 template<std::integral T>
 inline void gen_consecutive_array(int n, T* a)
 {
     for (int i = 0; i < n; ++i)
-    {
         a[i] = static_cast<T>(i);
-    }
 }
 
 template<std::integral T>
 inline void copy_array(int n, const T* a, T* out_copy)
-{
-    memcpy(out_copy, a, n * sizeof(T));
-}
+{ memcpy(out_copy, a, n * sizeof(T)); }
 
 template<std::integral T>
 inline void print_array(int n, T* a, bool abridged = true)
@@ -93,9 +81,7 @@ inline void print_array(int n, T* a, bool abridged = true)
 
     std::cout << '\t' << "[ ";
     for (int i = 0; i < max_size; ++i)
-    {
         printf("%i ", static_cast<int>(a[i]));
-    }
     if (abridged) std::cout << "...";
     printf(" ] - count: %i\n", n);
 }

@@ -28,9 +28,7 @@ void fill_container_random(T& ctn, int max_val)
     std::uniform_int_distribution<Element> distrib(0, max_val);
 
     for (int i = 0; i < ctn.size(); ++i)
-    {
         ctn[i] = distrib(gen);
-    }
 }
 
 template<ContainerIntegral T>
@@ -41,9 +39,7 @@ void print_container(const T& ctn, bool abridged = true)
 
     std::cout << '\t' << "[ ";
     for (int i = 0; i < max_size; ++i)
-    {
         printf("%i ", static_cast<int>(ctn[i]));
-    }
     if (abridged && max_size < n) std::cout << "...";
     printf(" ] - count: %i\n", n);
 }

@@ -16,13 +16,16 @@ void check_cuda_error_fn(const char* msg, const char* file, int line)
 namespace stream_compaction::common
 {
 
+__device__ int kernel_compute_global_index_1d()
+{ return static_cast<int>((blockIdx.x * blockDim.x) + threadIdx.x); }
+
 /**
  * Maps an array to an array of 0s and 1s for stream compaction. Elements
  * which map to 0 will be removed, and elements which map to 1 will be kept.
  */
 __global__ void kernel_map_to_boolean(int n, const int* idata, int* out_bools)
 {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int index = kernel_compute_global_index_1d();
 
     if (index >= n) return;
 
@@ -32,7 +35,7 @@ __global__ void kernel_map_to_boolean(int n, const int* idata, int* out_bools)
 __global__ void kernel_scatter(int n, const int* bools, const int* indices, const int* idata,
                                int* odata)
 {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int index = kernel_compute_global_index_1d();
 
     if (index >= n) return;
 
@@ -41,7 +44,7 @@ __global__ void kernel_scatter(int n, const int* bools, const int* indices, cons
 
 __global__ void kernel_inclusive_to_exclusive(int n, int identity, const int* idata, int* odata)
 {
-    int index = blockIdx.x * blockDim.x + threadIdx.x;
+    int index = kernel_compute_global_index_1d();
 
     if (index >= n) return;
 

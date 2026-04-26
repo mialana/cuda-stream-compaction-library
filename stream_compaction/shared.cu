@@ -15,24 +15,22 @@ PerformanceTimer& shared::get_timer()
     return timer;
 }
 
-__device__ __host__ unsigned kernel_offset(unsigned idx)
-{
-    return idx + CONFLICT_FREE_OFFSET(idx);
-}
+__device__ __host__ int kernel_offset(int idx)
+{ return idx + CONFLICT_FREE_OFFSET(idx); }
 
 __global__ void kernel_scan_intra_block_shared(int padded_n, const int* idata, int* out_block_sums,
                                                int* odata)
 {
     extern __shared__ int mat[];
 
-    const unsigned tile_size = blockDim.x * 2;
+    const int tile_size = static_cast<int>(blockDim.x * 2);
 
-    const unsigned tid = threadIdx.x;
+    const int tid = static_cast<int>(threadIdx.x);
 
-    unsigned block_offset = (blockIdx.x * blockDim.x) * 2;
-    unsigned thread_offset = 2 * tid;  // first index this thread is responsible for
+    int block_offset = static_cast<int>((blockIdx.x * blockDim.x) * 2);
+    int thread_offset = 2 * tid;  // first index this thread is responsible for
 
-    unsigned global_thread_idx = block_offset + thread_offset;
+    int global_thread_idx = block_offset + thread_offset;
 
     // global memory is read from in coalesced fashion
     // ensure some threads do not return early without zero-padding the shared matrix
@@ -45,19 +43,19 @@ __global__ void kernel_scan_intra_block_shared(int padded_n, const int* idata, i
 
     // which stride each child is reponsible for -- constant per thread
     // in reality, it is one stride higher than expected, but that's due to -1
-    const unsigned stride_idx_first_child = thread_offset + 1;
-    const unsigned stride_idx_second_child = thread_offset + 2;
+    const int stride_idx_first_child = thread_offset + 1;
+    const int stride_idx_second_child = thread_offset + 2;
 
     int stride = 1;  // 1, 2, 4, 8, 16, 32, ... tileSize
     // activeThreads: n/2, n/4, n/8, ... 1
-    for (unsigned active_threads = tile_size >> 1; active_threads > 0; active_threads >>= 1)
+    for (int active_threads = tile_size >> 1; active_threads > 0; active_threads >>= 1)
     {
         __syncthreads();
 
         if (tid < active_threads)
         {
-            unsigned first_idx = stride_idx_first_child * stride - 1;
-            unsigned second_idx = stride_idx_second_child * stride - 1;
+            int first_idx = stride_idx_first_child * stride - 1;
+            int second_idx = stride_idx_second_child * stride - 1;
 
             mat[kernel_offset(second_idx)] += mat[kernel_offset(first_idx)];
         }
@@ -73,15 +71,15 @@ __global__ void kernel_scan_intra_block_shared(int padded_n, const int* idata, i
         mat[kernel_offset(tile_size - 1)] = 0;  // clear last element
     }
 
-    for (unsigned active_threads = 1; active_threads < tile_size; active_threads <<= 1)
+    for (int active_threads = 1; active_threads < tile_size; active_threads <<= 1)
     {
         stride >>= 1;  // STRIDE ended at tileSize
         __syncthreads();
 
         if (tid < active_threads)
         {
-            unsigned first_idx = stride_idx_first_child * stride - 1;
-            unsigned second_idx = stride_idx_second_child * stride - 1;
+            int first_idx = stride_idx_first_child * stride - 1;
+            int second_idx = stride_idx_second_child * stride - 1;
 
             first_idx = kernel_offset(first_idx);
             second_idx = kernel_offset(second_idx);
@@ -94,32 +92,22 @@ __global__ void kernel_scan_intra_block_shared(int padded_n, const int* idata, i
     __syncthreads();  // this time the last `__syncthreads()` wasn't called
 
     if (global_thread_idx < padded_n)
-    {
         odata[block_offset + thread_offset] = mat[kernel_offset(thread_offset)];
-    }
     if (global_thread_idx + 1 < padded_n)
-    {
         odata[block_offset + thread_offset + 1] = mat[kernel_offset(thread_offset + 1)];
-    }
 }
 
 __global__ void kernel_add_block_sums(int n, const int* in_block_sums, int* odata)
 {
     __shared__ int block_offset;
 
-    if (threadIdx.x == 0)
-    {
-        block_offset = in_block_sums[blockIdx.x];
-    }
+    if (threadIdx.x == 0) block_offset = in_block_sums[blockIdx.x];
 
     __syncthreads();
 
-    unsigned index = blockIdx.x * blockDim.x + threadIdx.x;
+    int index = common::kernel_compute_global_index_1d();
 
-    if (index >= n)
-    {  // should be safe to return now
-        return;
-    }
+    if (index >= n) return;  // safe to return now
 
     odata[index] += block_offset;
 }
@@ -194,10 +182,7 @@ void scan_wrapper(int n, int* odata, const int* idata)
 
     scan(n, kBLOCK_SIZE, dev_block_sums, dev_idata, dev_odata);
 
-    if (using_timer)
-    {
-        get_timer().end_timer<GPU>();
-    }
+    if (using_timer) get_timer().end_timer<GPU>();
 
     CUDA_CHECK(cudaMemcpy(odata, dev_odata, sizeof(int) * n,
                           cudaMemcpyDeviceToHost));  // only copy n elements
@@ -267,10 +252,7 @@ int compact_wrapper(int n, const int* idata, int* odata)
     int compact_count = compact(n, kBLOCK_SIZE, dev_idata, dev_bools, dev_indices, dev_block_sums,
                                 dev_odata);
 
-    if (using_timer)
-    {
-        get_timer().end_timer<GPU>();
-    }
+    if (using_timer) get_timer().end_timer<GPU>();
 
     // Copy the compacted result back to host; note that compactCount elements are valid
     CUDA_CHECK(cudaMemcpy(odata, dev_odata, sizeof(int) * compact_count, cudaMemcpyDeviceToHost));

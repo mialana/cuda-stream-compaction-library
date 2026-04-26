@@ -11,7 +11,7 @@ namespace stream_compaction::shared
 
 common::PerformanceTimer& get_timer();
 
-__device__ __host__ unsigned kernel_offset(unsigned idx);
+__device__ __host__ int kernel_offset(int idx);
 
 __global__ void kernel_scan_intra_block_shared(int padded_n, const int* idata, int* out_block_sums,
                                                int* odata);

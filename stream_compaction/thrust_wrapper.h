@@ -7,9 +7,7 @@ namespace stream_compaction::thrust_wrapper
 struct IsNonZero
 {
     __host__ __device__ bool operator()(const int x) const
-    {
-        return x != 0;
-    }
+    { return x != 0; }
 };
 
 common::PerformanceTimer& get_timer();

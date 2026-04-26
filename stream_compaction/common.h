@@ -31,29 +31,25 @@ constexpr int kBLOCK_SIZE = 128;
 void check_cuda_error_fn(const char* msg, const char* file = nullptr, int line = -1);
 
 inline int divup(int size, int div)
-{
-    return (size + div - 1) / div;
-}
+{ return (size + div - 1) / div; }
 
 inline int ilog2(int x)
 {
     int lg = 0;
     while (x >>= 1)
-    {
         ++lg;
-    }
     return lg;
 }
 
 // calculates smallest possible integer k such that 2^k >= x
 // subtracts x from 1 in the case that we already have a power of 2
 inline int ilog2_ceil(int x)
-{
-    return x == 1 ? 0 : ilog2(x - 1) + 1;
-}
+{ return x == 1 ? 0 : ilog2(x - 1) + 1; }
 
 namespace stream_compaction::common
 {
+__device__ int kernel_compute_global_index_1d();
+
 __global__ void kernel_map_to_boolean(int n, const int* idata, int* out_bools);
 
 /**
@@ -164,14 +160,8 @@ public:
     template<eTimerDevice Device>
     [[nodiscard]] float get_elapsed_time_for_previous_operation() const
     {
-        if constexpr (Device == eTimerDevice::CPU)
-        {
-            return _prev_elapsed_time_cpu_milliseconds;
-        }
-        else
-        {
-            return _prev_elapsed_time_gpu_milliseconds;
-        }
+        if constexpr (Device == eTimerDevice::CPU) return _prev_elapsed_time_cpu_milliseconds;
+        else return _prev_elapsed_time_gpu_milliseconds;
     }
 
     // remove copy and move functions
